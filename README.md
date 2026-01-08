@@ -1,6 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dams Wallet
 
-## Getting Started
+Personal Finance Management & Budgeting App developed with [Next.js](https://nextjs.org).
+
+## 🌟 Features
+
+### 📊 Dashboard & Analytics
+
+The dashboard provides a comprehensive view of your financial health through various cards and detailed infographics.
+
+#### 1. Monthly Summary Cards
+Located at the top of the dashboard, these three cards provide a quick snapshot of the current month's performance:
+- **Total Income**: Sum of all transactions categorized as 'Income' for the current month.
+- **Total Expense**: Sum of all transactions categorized as 'Expense' for the current month.
+- **Net Savings**: Calculated as `Total Income - Total Expense`.
+  - **Blue**: Positive savings.
+  - **Red**: Negative savings (Expenses exceeded Income).
+
+#### 2. Category Breakdown
+A visual breakdown of where your money is going or coming from.
+- **Tabs**: Switch between **Income** and **Expense** views.
+- **Visualization**: Categories are sorted by value (highest to lowest).
+- **Calculation**: Each category's bar length represents its percentage relative to the highest spending/income category of the period.
+
+#### 3. Financial Health Insights (Smart Summary)
+Intelligent analysis of your financial data providing actionable insights:
+- **Status Indicators**:
+  - ✅ **Positive**: Healthy financial behaviors (e.g., high savings rate).
+  - ⚠️ **Warning**: Areas needing attention (e.g., fixed costs exceeding recommended ratios).
+  - 📈 **Neutral/Info**: General trends.
+
+#### 4. Fixed vs. Variable Cost Ratio
+This card helps analyze your spending flexibility:
+- **Fixed Costs**: Includes essential categories like Debt, Bills, Utilities, Rent/Mortgage.
+- **Variable Costs**: Discretionary spending like Shopping, Entertainment, Dining Out.
+- **The Calculation**:
+  ```
+  Fixed Ratio = (Fixed Costs / Total Expenses) * 100
+  ```
+- **Health Check**:
+  - **Healthy**: Fixed costs are < 60%.
+  - **Warning**: Fixed costs are > 60% (indicates low financial flexibility).
+
+#### 5. Trend Analysis
+- **Daily Expense (This Month)**: An area chart showing daily spending fluctuations to help identify spending spikes.
+- **Last 6 Months Trend**: A bar chart comparing Income vs. Expense side-by-side for the last half-year, helping you track long-term stability.
+
+---
+
+### 💼 Wallet Management
+- **Multiple Wallets**: Create and manage distinct wallets (e.g., Cash, Bank, E-Wallet).
+- **Balance Tracking**: Input and update initial balances.
+
+### 📝 Transaction Management
+- **Add Transactions**: Quickly log Income or Expenses with categories, dates, and notes.
+- **Filtering**: Filter transactions by Date range, Type (Income/Expense), or Category.
+
+---
+
+## 🛠 Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
+- **Charts**: [Recharts](https://recharts.org/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Database**: MongoDB (via Mongoose)
+
+---
+
+## 🚀 Getting Started
 
 First, run the development server:
 
@@ -16,21 +84,8 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📂 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/components/dashboard`: Contains analytics cards (MonthlySummary, DailyTrend, etc.).
+- `src/components/analytics`: Advanced analysis logic and health checks.
+- `src/lib`: Utility functions and category definitions.
