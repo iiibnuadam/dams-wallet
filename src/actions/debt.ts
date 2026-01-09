@@ -9,7 +9,7 @@ export async function getDebtsAction() {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.name) return [];
     
-    return DebtService.getDebts(session.user.name);
+    return DebtService.getDebts((session.user as any).id);
 }
 
 export async function createDebtAction(data: any) {
@@ -17,7 +17,7 @@ export async function createDebtAction(data: any) {
     if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
-        await DebtService.createDebt({ ...data, loanDate: data.loanDate || undefined }, session.user.name!);
+        await DebtService.createDebt({ ...data, loanDate: data.loanDate || undefined }, (session.user as any).id);
         revalidatePath("/debts");
         return { success: true };
     } catch (e) {
@@ -31,7 +31,7 @@ export async function updateDebtAction(id: string, data: any) {
     if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
-        await DebtService.updateDebt(id, data, session.user.name);
+        await DebtService.updateDebt(id, data, (session.user as any).id);
         revalidatePath("/debts");
         return { success: true };
     } catch (e) {
@@ -45,7 +45,7 @@ export async function deleteDebtAction(id: string) {
     if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
-        await DebtService.deleteDebt(id, session.user.name!);
+        await DebtService.deleteDebt(id, (session.user as any).id);
         revalidatePath("/debts");
         return { success: true };
     } catch (error) {
@@ -59,7 +59,7 @@ export async function settleDebtAction(id: string, walletId: string) {
 
     try {
         const { settleDebt } = await import("@/services/debt.service");
-        await settleDebt(id, walletId, session.user.name!);
+        await settleDebt(id, walletId, (session.user as any).id);
         revalidatePath("/debts");
         revalidatePath("/"); // Update dashboard stats
         revalidatePath("/transactions"); // Update transaction list

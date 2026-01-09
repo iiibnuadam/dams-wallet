@@ -2,6 +2,8 @@ import Transaction, { ITransaction, TransactionType } from "../models/Transactio
 import Wallet from "../models/Wallet";
 import dbConnect from "../lib/db";
 import { startOfMonth, endOfMonth, startOfDay, endOfDay, parse } from "date-fns";
+import "@/models/GoalItem"; // Register GoalItem schema
+import "@/models/Goal"; // Register Goal schema
 
 export async function createTransaction(data: Partial<ITransaction>) {
   await dbConnect();
@@ -58,6 +60,8 @@ export async function getTransactions(params: any) {
                 { type: "TRANSFER" },
                 { isTransfer: true }
             ];
+        } else if (params.type === "GOAL") {
+            query.goalItem = { $exists: true, $ne: null };
         } else {
             query.type = params.type;
         }
@@ -88,15 +92,30 @@ export async function getTransactions(params: any) {
         if (params.maxAmount) query.amount.$lte = Number(params.maxAmount);
     }
 
-    // 7. User Filter (New)
+    // 7. Goal Filter
+    if (params.goalId && params.goalId !== "ALL") {
+         // Find all items for this goal
+         const { default: GoalItem } = await import("../models/GoalItem");
+         const items = await GoalItem.find({ goalId: params.goalId }).select("_id");
+         const itemIds = items.map(i => i._id);
+         query.goalItem = { $in: itemIds };
+    }
+
+    // 7. User Filter (Wallet Ownership)
     const currentUser = params.currentUser;
     const userFilter = params.userFilter || "ME"; 
 
     if (currentUser) {
+        // Find wallets owned by current user
+        const wallets = await Wallet.find({ owner: currentUser }).select("_id");
+        const myWalletIds = wallets.map(w => w._id);
+
         if (userFilter === "ME") {
-            query.createdBy = currentUser;
+            // Transactions where the primary wallet is owned by me
+            query.wallet = { $in: myWalletIds };
         } else if (userFilter === "OTHERS") {
-            query.createdBy = { $ne: currentUser };
+            // Transactions where the primary wallet is NOT owned by me
+            query.wallet = { $nin: myWalletIds };
         }
         // ALL = no filter
     }
@@ -117,6 +136,7 @@ export async function getTransactions(params: any) {
                 path: "relatedTransactionId",
                 populate: { path: "wallet" }
             })
+            .populate("createdBy", "name")
             .populate({
                 path: "goalItem",
                 populate: { path: "goalId", select: "name" }
@@ -139,7 +159,8 @@ export async function getTransactions(params: any) {
         routineId: t.routineId ? t.routineId.toString() : undefined,
         createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
         updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
-        createdBy: t.createdBy ? t.createdBy.toString() : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        createdBy: (t.createdBy as any)?.name || (t.name as any)?.name || "Unknown",
         isTransfer: t.isTransfer,
         relatedTransaction: t.relatedTransactionId ? {
             _id: t.relatedTransactionId._id.toString(),

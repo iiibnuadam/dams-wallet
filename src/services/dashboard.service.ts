@@ -2,6 +2,8 @@ import Transaction, { TransactionType } from "@/models/Transaction";
 import Wallet from "@/models/Wallet";
 import dbConnect from "@/lib/db";
 import { startOfMonth, endOfMonth, subMonths, format, getDate, startOfDay, endOfDay, startOfWeek, endOfWeek, parse, startOfYear, endOfYear, isSameMonth } from "date-fns";
+import "@/models/GoalItem"; // Register GoalItem schema
+import "@/models/Goal"; // Register Goal schema
 import { WalletOwner } from "@/types/wallet";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,9 +52,28 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
 
   // 1. Identify "My Wallets" if owner is specified
   let myWalletIds: string[] = [];
+  let ownerId = owner; // Default to incoming (might be ID if updated elsewhere, but currently username)
+
   if (owner && owner !== "ALL") {
-      const wallets = await Wallet.find({ owner }).select("_id");
-      myWalletIds = wallets.map(w => w._id.toString());
+      // Resolve owner username to ID
+      const { default: User } = await import("@/models/User");
+      // Use regex for case-insensitive matching
+      const user = await User.findOne({ username: { $regex: new RegExp(`^${owner}$`, "i") } }).select("_id");
+      
+      if (user) {
+          ownerId = user._id.toString();
+          const wallets = await Wallet.find({ owner: ownerId }).select("_id");
+          myWalletIds = wallets.map(w => w._id.toString());
+      }
+  } else if (!owner || owner === "ALL") {
+       // Default to ADAM for debts if ALL? Or show all debts? 
+       // Logic at line 261 was: owner || "ADAM". 
+       // So if ALL, it used "ADAM".
+       // Let's resolve "ADAM" ID.
+       const { default: User } = await import("@/models/User");
+       // Use regex for case-insensitive matching for default user too
+       const defaultUser = await User.findOne({ username: { $regex: new RegExp("^ADAM$", "i") } }).select("_id");
+       if (defaultUser) ownerId = defaultUser._id.toString();
   }
 
   const buildMatchQuery = (dateQuery: any) => {
@@ -251,6 +272,11 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
         path: "relatedTransactionId",
         populate: { path: "wallet" }
     })
+    .populate("createdBy", "name")
+    .populate({
+        path: "goalItem",
+        populate: { path: "goalId", select: "name" }
+    })
     .lean();
     
   // 5. Debt Stats
@@ -258,7 +284,17 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
   // Assuming owner logic is same as wallets - if owner specific, get that owner's debts. 
   // If global (ADAM), get ADAM's debts? 
   // The dashboard `owner` param is reliable.
-  const debtStats = await getDebtStats(owner || "ADAM");
+  const debtStats = await getDebtStats(ownerId || "ADAM");
+
+  // 6. Active Goals
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let goals: any[] = [];
+  try {
+      const { getGoals } = await import("@/services/goal.service");
+      goals = await getGoals(ownerId);
+  } catch (error) {
+      console.error("Failed to fetch goals for dashboard:", error);
+  }
 
   return {
       period: { start, end },
@@ -270,33 +306,40 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
       expenseByCategory, // Keep existing name for backward compat if needed, or update consumers
       incomeByCategory, // New field
       debtStats, // New debt stats
+      goals, // New goals field
       monthlyTrend,
       dailyTrend,
        // eslint-disable-next-line @typescript-eslint/no-explicit-any
        recentTransactions: recentTransactions.map((t: any) => ({
-          ...t,
-          _id: t._id.toString(),
-          wallet: t.wallet ? { name: t.wallet.name, _id: t.wallet._id.toString() } : { name: "Unknown Wallet", _id: "" },
-          targetWallet: t.targetWallet ? { name: t.targetWallet.name, _id: t.targetWallet._id.toString() } : undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          category: t.category ? { name: (t.category as any).name } : undefined,
-          date: t.date.toISOString(),
-          
-          // Fix serialization for Mongoose types
-          goalItem: t.goalItem ? t.goalItem.toString() : undefined,
-          routineId: t.routineId ? t.routineId.toString() : undefined,
-          createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
-          updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
-          isTransfer: t.isTransfer,
-          relatedTransaction: t.relatedTransactionId ? {
-              _id: t.relatedTransactionId._id.toString(),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              wallet: t.relatedTransactionId.wallet ? {
-                  name: t.relatedTransactionId.wallet.name,
-                  _id: t.relatedTransactionId.wallet._id.toString()
-              } : undefined
-          } : undefined,
-          relatedTransactionId: t.relatedTransactionId ? t.relatedTransactionId._id.toString() : undefined
+              ...t,
+        _id: t._id.toString(),
+        wallet: { name: t.wallet.name, _id: t.wallet._id.toString() },
+        targetWallet: t.targetWallet ? { name: t.targetWallet.name, _id: t.targetWallet._id.toString() } : undefined,
+        category: t.category ? { name: (t.category as any).name, _id: (t.category as any)._id?.toString() } : undefined,
+        date: t.date.toISOString(),
+        routineId: t.routineId ? t.routineId.toString() : undefined,
+        createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
+        updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        createdBy: (t.createdBy as any)?.name || (t.name as any)?.name || "Unknown",
+        isTransfer: t.isTransfer,
+        relatedTransaction: t.relatedTransactionId ? {
+            _id: t.relatedTransactionId._id.toString(),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            wallet: t.relatedTransactionId.wallet ? {
+                name: t.relatedTransactionId.wallet.name,
+                _id: t.relatedTransactionId.wallet._id.toString()
+            } : undefined
+        } : undefined,
+        relatedTransactionId: t.relatedTransactionId ? t.relatedTransactionId._id.toString() : undefined,
+        goalItem: t.goalItem ? {
+            _id: t.goalItem._id.toString(),
+            name: t.goalItem.name,
+            goal: t.goalItem.goalId ? {
+                _id: t.goalItem.goalId._id.toString(),
+                name: t.goalItem.goalId.name
+            } : undefined
+        } : undefined
       }))
   };
 }

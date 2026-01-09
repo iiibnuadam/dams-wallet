@@ -26,7 +26,7 @@ const DebtSchema: Schema = new Schema(
     status: { type: String, enum: ["ACTIVE", "PAID"], default: "ACTIVE" },
     proofUrl: { type: String },
     notes: { type: String },
-    owner: { type: String, required: true },
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }
 );

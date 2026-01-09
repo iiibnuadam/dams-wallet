@@ -10,7 +10,7 @@ const WalletSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     type: { type: String, enum: Object.values(WalletType), required: true },
-    owner: { type: String, enum: Object.values(WalletOwner), required: true },
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: true },
     initialBalance: { type: Number, required: true, default: 0 },
     color: { type: String, default: "BLUE" },
     liabilityDetails: {

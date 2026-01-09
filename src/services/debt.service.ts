@@ -11,7 +11,7 @@ export async function createDebt(data: Partial<IDebt>, owner: string) {
 
 export async function getDebts(owner: string) {
     await dbConnect();
-    const debts = await Debt.find({ owner }).sort({ createdAt: -1 }).lean();
+    const debts = await Debt.find({ owner }).sort({ createdAt: -1 }).populate("owner", "username name").lean();
     return JSON.parse(JSON.stringify(debts));
 }
 
@@ -27,8 +27,13 @@ export async function deleteDebt(id: string, owner: string) {
 
 export async function getDebtStats(owner: string) {
     await dbConnect();
+    // Aggregate requires ObjectId type match
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mongoose = require("mongoose");
+    const ownerId = mongoose.Types.ObjectId.isValid(owner) ? new mongoose.Types.ObjectId(owner) : owner;
+
     const stats = await Debt.aggregate([
-        { $match: { owner, status: "ACTIVE" } },
+        { $match: { owner: ownerId, status: "ACTIVE" } },
         { 
             $group: { 
                 _id: "$type", 

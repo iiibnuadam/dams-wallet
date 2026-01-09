@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, CircleDollarSign, History, AlertCircle, Target, TrendingDown, Wallet, Calendar, Pencil } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet } from "lucide-react";
 import Link from "next/link";
 import {
   Accordion,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { Badge } from "@/components/ui/badge";
 import { EditGoalDialog } from "@/components/GoalDialogs";
 import { AddGoalItemDialog, EditGoalItemDialog, DeleteGoalItemDialog } from "@/components/GoalItemDialogs";
@@ -23,7 +22,9 @@ import { cn } from "@/lib/utils";
 import { EditGroupDialog } from "@/components/GroupDialogs";
 
 interface GoalDetailViewProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     goal: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     wallets: any[];
 }
 
@@ -32,6 +33,7 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
     const [historyFilter, setHistoryFilter] = useState<{ type: 'ALL' | 'GROUP' | 'ITEM', id?: string, name?: string }>({ type: 'ALL' });
 
     // Group items
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const groupedItems = goal.items.reduce((acc: any, item: any) => {
         if (!acc[item.groupName]) {
         acc[item.groupName] = [];
@@ -42,13 +44,18 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
     const groups = Object.keys(groupedItems);
 
     // Filter History Logic
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredHistory = goal.history?.filter((txn: any) => {
         if (historyFilter.type === 'ALL') return true;
-        if (historyFilter.type === 'ITEM') return txn.goalItem === historyFilter.id;
+        
+        const txnItemId = typeof txn.goalItem === 'object' ? txn.goalItem?._id : txn.goalItem;
+
+        if (historyFilter.type === 'ITEM') return txnItemId === historyFilter.id;
         if (historyFilter.type === 'GROUP') {
              // Find all items in this group
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
              const groupItems = groupedItems[historyFilter.id!]?.map((i: any) => i._id);
-             return groupItems?.includes(txn.goalItem);
+             return groupItems?.includes(txnItemId);
         }
         return true;
     });
@@ -59,7 +66,9 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
     };
 
     // Calculations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const totalEstimated = goal.items.reduce((sum: number, item: any) => sum + item.estimatedAmount, 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const totalActual = goal.items.reduce((sum: number, item: any) => sum + item.actualAmount, 0);
     const overallProgress = totalEstimated > 0 ? (totalActual / totalEstimated) * 100 : 0;
     const totalRemaining = Math.max(0, totalEstimated - totalActual);
@@ -69,141 +78,243 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
         style: "currency",
         currency: "IDR",
         minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
         }).format(amount);
     };
 
+    const goalColor = goal.color || '#6366f1';
+
     return (
-        <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto">
-        <Link href="/goals" className="px-4 inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-6">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Goals
-        </Link>
+        <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto space-y-8">
+        
+        {/* Navigation */}
+        <div className="px-4">
+             <Link href="/goals" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back to Goals
+            </Link>
+        </div>
 
-        <div className="container sm:px-4 py-2 space-y-8">
-            {/* Overall Status Card - Gestalt Redesign */}
+        <div className="container sm:px-4 space-y-8">
+            {/* GLASS + ICON BACKGROUND DESIGN */}
             <div className="px-4">
-            <div 
-                className="rounded-3xl text-white shadow-2xl relative overflow-hidden transition-all duration-500 group"
-                style={{ 
-                    background: `linear-gradient(145deg, ${goal.color || '#6366f1'}, ${goal.color ? goal.color + 'dd' : '#7c3aed'})`,
-                    boxShadow: `0 25px 50px -12px ${goal.color}60`
-                }}
-            >
-                {/* Background Atmosphere */}
-                <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-white/20 rounded-full blur-[80px] opacity-60" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[250px] h-[250px] bg-black/20 rounded-full blur-[60px]" />
-                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-50" />
-
-                <div className="relative z-10 p-6 sm:p-8 flex flex-col h-full">
+                <div 
+                    className="relative overflow-hidden rounded-[32px] shadow-xl transition-all duration-500 group bg-card border-t border-white/10"
+                >
+                    {/* Background Layers */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-black/5" />
                     
-                    {/* Top Section: Identity & Actions (Proximity) */}
-                    <div className="flex justify-between items-start mb-8">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-lg border border-white/20">
-                                {goal.icon || "🎯"}
+                    {/* Color Overlay */}
+                    <div 
+                        className="absolute inset-0 opacity-[0.08] dark:opacity-[0.15]" 
+                        style={{ backgroundColor: goalColor }} 
+                    />
+                    
+                    {/* Faint Background Icon */}
+                    <div className="absolute md:-bottom-10 -right-10 opacity-[0.03] dark:opacity-[0.05] pointer-events-none select-none">
+                        <span className="text-[250px] leading-none grayscale" style={{ color: goalColor }}>
+                            {goal.icon || "🎯"}
+                        </span>
+                    </div>
+
+                    {/* Glass Content Layer */}
+                    <div className="relative z-10 backdrop-blur-[2px]"> 
+                        <div className="p-8 sm:p-10 flex flex-col h-full"> 
+                        {/* Text color adjustment needed because background is simpler now. 
+                           Actually, if it's glass on card, text might need to be foreground, not white.
+                           BUT user said "glass morpheme", usually implies vibrant or dark background?
+                           "cuma ada warna overlay" implies simple tint.
+                           Let's check if we should keep text white or switch to standard foreground.
+                           If opacity is 10%, it's basically the theme background.
+                           Let's assume we want to keep the "Card" feel but mostly transparent/glassy.
+                           The text colors in previous version were forced to white. 
+                           If I switch background to light tint, white text will disappear on light mode.
+                           
+                           DECISION: Use default text colors (foreground) since the background is now just a tint.
+                           Or keep the "Card" dark/colored?
+                           User said "glass morpheme... color overlay". 
+                           Usually means:
+                           Bg = Glass
+                           Overlay = Color
+                           
+                           If I use `bg-card`, it matches theme.
+                           If I use `goalColor` as overlay, it tints it.
+                           Text should probably match theme (foreground) to be safe, OR force dark/light if the card is meant to be a "colored card".
+                           
+                           The previous design was a "colored card" (white text).
+                           The user said "background glass morpheme" which might mean they want it to blend with the page but look glassy.
+                           
+                           Let's try to make it look like a "Glass Card" that adapts.
+                           I will remove `text-white` classes and let them inherit or set `text-foreground`.
+                           BUT, if the goal color is dark and we overlay it, we might need contrast.
+                           However, `opacity-10` overlay is safe for standard text.
+                           
+                           Let's stick to standard `text-foreground` for safety and cleaner look, 
+                           but maybe keep distinct elements colored.
+                        */}
+                            
+                            {/* Header Row */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
+                                <div className="flex items-center gap-5">
+                                    <div 
+                                        className="md:w-20 md:h-20 w-16 h-16 rounded-[22px] flex items-center justify-center text-5xl shadow-sm border border-black/5"
+                                        style={{ backgroundColor: `${goalColor}15` }}
+                                    >
+                                        {goal.icon || "🎯"}
+                                    </div>
+                                    <div className="space-y-1">
+                                         <div className="flex items-center gap-3">
+                                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
+                                                {goal.name}
+                                            </h1>
+                                            {goal.visibility === "SHARED" && (
+                                                <div className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                                                    <Share2 className="w-3 h-3" /> Shared
+                                                </div>
+                                            )}
+                                         </div>
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                                            <Calendar className="w-4 h-4 opacity-70" />
+                                            <span>Target: {format(new Date(goal.targetDate), "MMMM d, yyyy")}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <EditGoalDialog goal={goal} trigger={
+                                     <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 backdrop-blur-md shadow-sm">
+                                        <Pencil className="w-4 h-4 mr-2" /> Edit Goal
+                                     </Button>
+                                 } />
                             </div>
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-1 shadow-sm">{goal.name}</h1>
-                                <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
-                                    <Calendar className="w-4 h-4 opacity-80" />
-                                    <span>{format(new Date(goal.targetDate), "dd MMM yyyy")}</span>
+
+                            {/* Main Stats Block */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-end">
+                                
+                                {/* Primary Metric: Collected */}
+                                <div className="space-y-2">
+                                    <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest pl-1">Total Collected</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 
+                                            className="text-4xl xl:text-6xl font-black tracking-tighter"
+                                            style={{ color: goalColor }}
+                                        >
+                                            {formatCurrency(totalActual)}
+                                        </h2>
+                                    </div>
+                                    
+                                     {/* Simple Progress Indicator */}
+                                     {totalRemaining === 0 ? (
+                                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-600 backdrop-blur-md">
+                                             <CheckCircle2 className="w-5 h-5" />
+                                             <span className="font-bold">Goal Completed! 🎉</span>
+                                         </div>
+                                     ) : (
+                                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted/50 border border-border/50 rounded-full text-muted-foreground text-sm backdrop-blur-md">
+                                             <TrendingDown className="w-4 h-4" />
+                                             <span>{overallProgress.toFixed(1)}% complete</span>
+                                         </div>
+                                     )}
+                                </div>
+
+                                {/* Secondary Metrics Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     {/* Target Card */}
+                                     <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 hover:bg-background/80 transition-colors">
+                                         <div className="flex items-start justify-between mb-4">
+                                             <div className="p-2 bg-muted/50 rounded-lg">
+                                                 <Target className="w-5 h-5 text-muted-foreground" />
+                                             </div>
+                                             <span className="text-xs text-muted-foreground font-mono">TARGET</span>
+                                         </div>
+                                         <div>
+                                             <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(totalEstimated)}</p>
+                                             <p className="text-xs text-muted-foreground mt-1">Total needed</p>
+                                         </div>
+                                     </div>
+
+                                     {/* Shortfall Card */}
+                                     <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 hover:bg-background/80 transition-colors relative overflow-hidden group/card">
+                                         {totalRemaining > 0 ? (
+                                             <>
+                                                <div className="absolute inset-0 bg-red-500/5 opacity-100 transition-opacity" />
+                                                <div className="flex items-start justify-between mb-4 relative z-10">
+                                                    <div className="p-2 bg-muted/50 rounded-lg">
+                                                        <Wallet className="w-5 h-5 text-muted-foreground" />
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground font-mono">REMAINING</span>
+                                                </div>
+                                                <div className="relative z-10">
+                                                    <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(totalRemaining)}</p>
+                                                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                                        To reach goal
+                                                    </p>
+                                                </div>
+                                             </>
+                                         ) : (
+                                              <>
+                                                 <div className="absolute inset-0 bg-emerald-500/5" />
+                                                 <div className="flex items-center justify-center h-full flex-col text-emerald-600 pb-2 relative z-10">
+                                                     <CheckCircle2 className="w-8 h-8 mb-2" />
+                                                     <p className="font-bold">All Set!</p>
+                                                 </div>
+                                              </>
+                                         )}
+                                     </div>
                                 </div>
                             </div>
-                        </div>
-                         <EditGoalDialog goal={goal} trigger={
-                             <Button size="icon" variant="ghost" className="h-10 w-10 text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-colors">
-                                <Pencil className="w-5 h-5" />
-                             </Button>
-                         } />
-                    </div>
 
-                    {/* Middle Section: Core Metric (Hierarchy) */}
-                    <div className="flex-1 flex flex-col justify-center items-center text-center py-4 mb-8">
-                        <span className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-3">Total Collected</span>
-                        <h2 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter drop-shadow-md leading-none">
-                            {formatCurrency(totalActual)}
-                        </h2>
-                    </div>
-
-                    {/* Integrated Progress Bar (Continuity) */}
-                    <div className="space-y-3 mb-8">
-                         <div className="flex justify-between items-end px-1">
-                            <span className="text-sm font-medium text-white/90">{overallProgress.toFixed(0)}% Achieved</span>
-                            <span className="text-xs text-white/70 uppercase tracking-wider font-semibold">Progress</span>
-                        </div>
-                        <div className="h-4 bg-black/20 backdrop-blur-md rounded-full overflow-hidden border border-white/10 p-1">
-                             <div 
-                                className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)] rounded-full transition-all duration-1000 ease-out"
-                                style={{ width: `${Math.min(overallProgress, 100)}%` }}
-                             />
-                        </div>
-                    </div>
-
-                    {/* Bottom Section: Secondary MetricsGrid (Common Region) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center sm:items-start transition-colors hover:bg-black/30">
-                            <span className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Goal Target</span>
-                            <div className="flex items-center gap-2">
-                                <Target className="w-4 h-4 text-white/80" />
-                                <span className="text-lg sm:text-xl font-bold text-white/95">{formatCurrency(totalEstimated)}</span>
+                            {/* Bottom Progress Bar */}
+                            <div className="mt-10">
+                                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full shadow-sm rounded-full relative overflow-hidden transition-all duration-1000 ease-out"
+                                        style={{ width: `${Math.min(overallProgress, 100)}%`, backgroundColor: goalColor }}
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-1/2 h-full skew-x-[-20deg] animate-[shimmer_2s_infinite]" />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 flex flex-col items-center sm:items-start transition-colors hover:bg-white/20 relative overflow-hidden">
-                            {totalRemaining > 0 ? (
-                                <>
-                                    <span className="text-red-100/80 text-xs font-bold uppercase tracking-wider mb-1">Shortfall</span>
-                                     <div className="flex items-center gap-2">
-                                        <TrendingDown className="w-4 h-4 text-red-100" />
-                                        <span className="text-lg sm:text-xl font-bold text-white">{formatCurrency(totalRemaining)}</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="text-emerald-100/80 text-xs font-bold uppercase tracking-wider mb-1">Status</span>
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-100" />
-                                        <span className="text-lg sm:text-xl font-bold text-white">Completed!</span>
-                                    </div>
-                                </>
-                            )}
+
                         </div>
                     </div>
-
                 </div>
             </div>
-            </div>
 
+            {/* Content Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="px-4">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="history">
-                        History
-                        {historyFilter.type !== 'ALL' && <span className="w-2 h-2 rounded-full bg-primary ml-2 animate-pulse" />}
-                    </TabsTrigger>
-                </TabsList>
-              </div>
+                <div className="px-4">
+                    <TabsList className="bg-muted/50 p-1 rounded-full border border-border/50 h-auto inline-flex mb-6">
+                        <TabsTrigger value="overview" className="rounded-full px-6 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Overview</TabsTrigger>
+                        <TabsTrigger value="history" className="rounded-full px-6 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all flex items-center gap-2">
+                            History
+                            {historyFilter.type !== 'ALL' && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
                 
-                <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 focus-visible:outline-none">
                     {/* Goal Items */}
-                    <div className="space-y-4 bg-background rounded-xl p-4">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                            Budget Breakdown
+                    <div className="px-4">
+                        <div className="flex items-center justify-between mb-4">
+                             <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
+                                Budget Breakdown
+                            </h3>
                             <AddGoalItemDialog goalId={goal._id} existingGroups={groups} />
-                            <Badge variant="outline" className="ml-auto text-xs font-normal">
-                                {goal.items.length} Items
-                            </Badge>
-                        </h3>
+                        </div>
 
-                        <Accordion type="multiple" defaultValue={groups} className="w-full space-y-4">
+                        <Accordion type="multiple" defaultValue={groups} className="space-y-4">
                             {groups.map((group) => {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const items = groupedItems[group];
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const groupTotal = items.reduce((sum: number, i: any) => sum + i.actualAmount, 0);
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const groupEstimated = items.reduce((sum: number, i: any) => sum + i.estimatedAmount, 0);
                                 const groupRemaining = Math.max(0, groupEstimated - groupTotal);
                                 const isOverBudget = groupTotal > groupEstimated;
 
                                 // Get Group Metadata
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const groupMeta = goal.groups?.find((g: any) => g.name === group);
                                 const groupColor = groupMeta?.color || goal.color || "#6366f1";
                                 const groupIcon = groupMeta?.icon || "📁";
@@ -212,68 +323,76 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                                     <AccordionItem 
                                         key={group} 
                                         value={group} 
-                                        className="border rounded-xl px-4 mb-3 overflow-hidden transition-all duration-300"
-                                        style={{ 
-                                            borderColor: `${groupColor}50`,
-                                            backgroundColor: `${groupColor}10` 
-                                        }}
+                                        className="border rounded-2xl px-1 overflow-hidden transition-all duration-300 bg-card/50 hover:bg-card/80"
+                                        style={{ borderColor: `${groupColor}30` }}
                                     >
-                                        <AccordionTrigger className="hover:no-underline py-4">
-                                            <div className="flex-1 text-left mr-4">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <div className="font-semibold flex items-center gap-2">
-                                                            <span className="text-xl">{groupIcon}</span>
-                                                            <span style={{ color: groupColor }}>{group}</span>
-                                                            <div onClick={(e) => e.stopPropagation()}>
-                                                                <EditGroupDialog 
-                                                                    goalId={goal._id} 
-                                                                    group={{ name: group, color: groupMeta?.color, icon: groupMeta?.icon }} 
-                                                                />
+                                        <div className="relative">
+                                             <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: groupColor }} />
+                                            <AccordionTrigger className="hover:no-underline py-4 px-4 pl-6">
+                                                <div className="flex-1 text-left mr-4">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="font-bold text-lg flex items-center gap-2">
+                                                                <span className="text-xl opacity-80">{groupIcon}</span>
+                                                                <span>{group}</span>
+                                                                 <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <EditGroupDialog 
+                                                                        goalId={goal._id} 
+                                                                        group={{ name: group, color: groupMeta?.color, icon: groupMeta?.icon }} 
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            {groupRemaining > 0 ? (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    Needs <span className="font-semibold text-foreground">{formatCurrency(groupRemaining)}</span> more
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-xs text-emerald-600 font-medium">Fully Funded</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className={cn("text-base font-bold", isOverBudget ? 'text-red-500' : 'text-emerald-600')}>
+                                                                {formatCurrency(groupTotal)}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground font-medium">
+                                                                of {formatCurrency(groupEstimated)}
                                                             </div>
                                                         </div>
-                                                        {groupRemaining > 0 && (
-                                                            <div className="text-[10px] text-muted-foreground mt-0.5 ml-8">
-                                                                Remaining: <span className="text-red-500 font-medium">{formatCurrency(groupRemaining)}</span>
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className={`text-sm font-medium ${isOverBudget ? 'text-red-500' : 'text-emerald-600'}`}>
-                                                            {formatCurrency(groupTotal)}
-                                                        </div>
-                                                        <div className="text-[10px] text-muted-foreground">
-                                                            Target: {formatCurrency(groupEstimated)}
+                                                    
+                                                    {/* Custom Progress Bar */}
+                                                    <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full transition-all duration-500 rounded-full relative"
+                                                            style={{ 
+                                                                width: `${groupEstimated > 0 ? Math.min((groupTotal / groupEstimated) * 100, 100) : 0}%`,
+                                                                backgroundColor: isOverBudget ? '#ef4444' : groupColor 
+                                                            }}
+                                                        >
+                                                            {groupRemaining === 0 && <div className="absolute inset-0 bg-white/20" />}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden ml-8 w-[calc(100%-2rem)]">
-                                                    <div 
-                                                        className="h-full transition-all duration-500 rounded-full"
-                                                        style={{ 
-                                                            width: `${groupEstimated > 0 ? Math.min((groupTotal / groupEstimated) * 100, 100) : 0}%`,
-                                                            backgroundColor: isOverBudget ? '#ef4444' : groupColor 
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="pb-4 pt-1 space-y-3">
+                                            </AccordionTrigger>
+                                        </div>
+                                        
+                                        <AccordionContent className="pb-4 pt-1 px-4 pl-6 space-y-3">
                                             {/* Group Actions */}
                                             <div className="flex justify-end mb-2">
                                                  <Button 
                                                     variant="ghost" 
                                                     size="sm" 
-                                                    className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                                                    className="h-7 text-xs text-muted-foreground hover:text-primary gap-1.5"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleFilter('GROUP', group, group);
                                                     }}
                                                 >
-                                                    <History className="w-3 h-3" /> View Group History
+                                                    <History className="w-3.5 h-3.5" /> View Group History
                                                 </Button>
                                             </div>
 
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                             {items.map((item: any) => {
                                                 const progress = item.estimatedAmount > 0 ? (item.actualAmount / item.estimatedAmount) * 100 : 0;
                                                 const isItemOver = item.actualAmount > item.estimatedAmount;
@@ -281,52 +400,53 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                                                 const itemRemaining = Math.max(0, item.estimatedAmount - item.actualAmount);
 
                                                 return (
-                                                    <div key={item._id} className="bg-background border rounded-lg p-3 space-y-3 group relative">
+                                                    <div key={item._id} className="bg-background/80 backdrop-blur-sm border rounded-xl p-4 space-y-4 shadow-sm hover:shadow-md transition-all group/item relative">
                                                         <div className="flex justify-between items-start">
                                                             <div>
-                                                                <div className="font-medium flex items-center gap-2">
+                                                                <div className="font-semibold flex items-center gap-2 text-base">
                                                                     {item.name}
-                                                                    {isPaid && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                                                                    <div className="ml-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    {isPaid && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                                                                    <div className="ml-2 flex items-center opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                                         <EditGoalItemDialog goalId={goal._id} item={item} existingGroups={groups} />
                                                                         <DeleteGoalItemDialog goalId={goal._id} itemId={item._id} itemName={item.name} />
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex gap-2 mt-0.5">
-                                                                     <div className="text-xs text-muted-foreground">
-                                                                        Est: {formatCurrency(item.estimatedAmount)}
+                                                                <div className="flex flex-col md:flex-row flex-reverse md:flex-normal gap-3 mt-3 md:mt-1 md:items-center">
+                                                                     <div className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded w-fit md:w-auto">
+                                                                        Target: {formatCurrency(item.estimatedAmount)}
                                                                     </div>
                                                                     {itemRemaining > 0 && (
-                                                                         <div className="text-xs text-red-500 font-medium">
-                                                                            (-{formatCurrency(itemRemaining)})
-                                                                        </div>
+                                                                         <div className="text-xs text-red-500 font-medium flex items-center gap-1">
+                                                                            <TrendingDown className="w-3 h-3" />
+                                                                            -{formatCurrency(itemRemaining)}
+                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                             <div className="text-right">
-                                                                <div className={`font-semibold text-sm ${isItemOver ? "text-red-600" : "text-emerald-600"}`}>
+                                                                <div className={cn("font-bold text-lg", isItemOver ? "text-red-600" : "text-emerald-600")}>
                                                                     {formatCurrency(item.actualAmount)}
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-4">
                                                             <Progress 
                                                                 value={Math.min(progress, 100)} 
-                                                                className="h-2 flex-1"
+                                                                className="h-2.5 flex-1"
                                                                 indicatorClassName={isItemOver ? "bg-red-500" : "bg-emerald-500"}
                                                             />
-                                                            <div className="text-xs font-medium w-9 text-right">{progress.toFixed(0)}%</div>
+                                                            <div className="text-xs font-bold w-10 text-right">{progress.toFixed(0)}%</div>
                                                         </div>
 
-                                                        <div className="flex justify-between items-center pt-1">
+                                                        <div className="flex justify-between items-center pt-2 border-t border-dashed">
                                                             <Button 
                                                                 variant="ghost" 
                                                                 size="sm" 
-                                                                className="h-7 text-xs px-2 -ml-2 text-muted-foreground hover:text-primary"
+                                                                className="h-8 text-xs text-muted-foreground hover:text-primary pl-0 hover:bg-transparent"
                                                                 onClick={() => handleFilter('ITEM', item._id, item.name)}
                                                             >
-                                                                <History className="w-3 h-3 mr-1" /> History
+                                                                <History className="w-3.5 h-3.5 mr-1.5" /> Recent Activity
                                                             </Button>
 
                                                             <PayGoalItemDialog 
@@ -334,8 +454,8 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                                                                 item={item}
                                                                 wallets={wallets}
                                                                 trigger={
-                                                                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                                        + Pay / Cicil
+                                                                    <Button size="sm" className="h-8 text-xs font-medium px-4 shadow-sm hover:shadow-md transition-all">
+                                                                        + Pay
                                                                     </Button>
                                                                 }
                                                             />
@@ -351,29 +471,31 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="history" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="space-y-4 bg-background rounded-xl p-4">
+                <TabsContent value="history" className="animate-in fade-in slide-in-from-bottom-2 duration-500 px-4">
+                    <div className="space-y-6">
                         {/* Filter Controls */}
-                        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar items-center">
+                            <span className="text-xs font-medium text-muted-foreground mr-2 uppercase tracking-wider">Filter:</span>
                             <Button 
                                 variant={historyFilter.type === 'ALL' ? "default" : "outline"} 
                                 size="sm" 
-                                className="h-8 rounded-full"
+                                className="rounded-full h-8 text-xs"
                                 onClick={() => handleFilter('ALL')}
                             >
-                                All
+                                All History
                             </Button>
                             {/* Group Filters */}
                             {groups.map((group) => {
                                  const isActive = historyFilter.type === 'GROUP' && historyFilter.id === group;
+                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                  const groupMeta = goal.groups?.find((g: any) => g.name === group);
                                  return (
                                     <Button
                                         key={group}
                                         variant={isActive ? "default" : "outline"}
                                         size="sm"
-                                        className="h-8 rounded-full whitespace-nowrap"
-                                        style={isActive ? { backgroundColor: groupMeta?.color } : { color: groupMeta?.color, borderColor: groupMeta?.color ? `${groupMeta.color}40` : undefined }}
+                                        className="rounded-full h-8 text-xs whitespace-nowrap border-dashed"
+                                        style={isActive ? { backgroundColor: groupMeta?.color } : { color: groupMeta?.color, borderColor: groupMeta?.color ? `${groupMeta.color}60` : undefined }}
                                         onClick={() => handleFilter('GROUP', group, group)}
                                     >
                                        {groupMeta?.icon || "📁"} {group}
@@ -381,20 +503,26 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                                  );
                             })}
                         </div>
-                        <GoalHistoryList 
-                            history={filteredHistory || []} 
-                            itemColorMap={goal.items.reduce((acc: any, item: any) => {
-                                const groupMeta = goal.groups?.find((g: any) => g.name === item.groupName);
-                                acc[item._id] = groupMeta?.color || goal.color || "#6366f1";
-                                return acc;
-                            }, {})}
-                        />
-                         {(filteredHistory?.length || 0) === 0 && (
-                            <div className="text-center py-10 text-muted-foreground">
-                                <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                                <p>No transaction history found</p>
-                            </div>
-                        )}
+                        
+                        <div className="overflow-hidden">
+                             <GoalHistoryList 
+                                history={filteredHistory || []} 
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                itemColorMap={goal.items.reduce((acc: any, item: any) => {
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    const groupMeta = goal.groups?.find((g: any) => g.name === item.groupName);
+                                    acc[item._id] = groupMeta?.color || goal.color || "#6366f1";
+                                    return acc;
+                                }, {})}
+                            />
+                             {(filteredHistory?.length || 0) === 0 && (
+                                <div className="text-center py-16 text-muted-foreground bg-muted/10">
+                                    <Wallet className="w-12 h-12 mx-auto mb-3 opacity-10" />
+                                    <p className="font-medium">No transactions found</p>
+                                    <p className="text-xs opacity-60">Try changing filters or add a transaction</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </TabsContent>
             </Tabs>

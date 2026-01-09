@@ -21,6 +21,7 @@ interface TransactionDTO {
     targetWallet?: { name: string; _id: string }; 
     isTransfer?: boolean;
     relatedTransaction?: { wallet?: { name: string; _id: string } };
+    createdBy?: string;
 }
 
 interface PaginationMeta {
@@ -80,7 +81,11 @@ export function TransactionList({ transactions: initialTransactions, pagination:
     
     // Convert search params to object
     const params: any = { page: nextPage, limit: 15, ...contextParams };
-    searchParams.forEach((value, key) => { params[key] = value; });
+    searchParams.forEach((value, key) => { 
+        if (key !== 'page') {
+             params[key] = value; 
+        }
+    });
 
     const res = await fetchTransactionPage(params);
     

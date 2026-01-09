@@ -16,9 +16,10 @@ export async function getUserProfile() {
     }
 
     try {
-        // We use the username from session to find the user, as ID might be tricky if not fully synced
-        // But authOptions callbacks ensure session.user.name is the username
-        const user = await User.findOne({ username: session.user.name });
+        // Use ID from session which is reliable
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userId = (session.user as any).id;
+        const user = await User.findById(userId);
 
         if (!user) {
             return { success: false, message: "User not found" };
@@ -54,7 +55,9 @@ export async function updateProfile(formData: FormData) {
     }
 
     try {
-        const user = await User.findOne({ username: session.user.name });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userId = (session.user as any).id;
+        const user = await User.findById(userId);
 
         if (!user) {
             return { success: false, message: "User not found" };

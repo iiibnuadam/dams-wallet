@@ -21,14 +21,32 @@ import { BarChart3, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<any> }) {
   const params = await searchParams;
+  const session = await getServerSession(authOptions);
+
+  // Determine view: param > session user > ALL
+  let currentView = params.view;
+  if (!currentView && session?.user?.email) {
+    if (session.user.email.includes("adam")) currentView = "ADAM";
+    else if (session.user.email.includes("sasti")) currentView = "SASTI";
+  }
+  const viewToUse = currentView || "ALL";
   
   // Parallel Fetching
-  const owner = params.owner || "ALL";
+  const owner = params.owner || viewToUse; // params.owner is legacy check, better use viewToUse consistently unless owner param is distinct
+  
+  // Ensure we pass the possibly updated 'view' to getDashboardData if it reads from view param inside (dashboard service often reads directly from db/etc but getDashboardData(view) expects string)
+  // Wait, getDashboardData signature in analytics page was: getDashboardData(owner, params) where owner is expected string.
+  // Actually in page.tsx it was getDashboardData(view). 
+  // Let's check getDashboardData signature. It seems to accept (view, searchParams).
+  
   const [dashboardData, healthData] = await Promise.all([
-      getDashboardData(owner, params),
-      getFinancialHealthData(owner, params)
+      getDashboardData(viewToUse, params),
+      getFinancialHealthData(viewToUse, params)
   ]);
 
   const { expenseByCategory, incomeByCategory, dailyTrend, period, summary } = dashboardData;
@@ -50,7 +68,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                    {/* Removed separate button, integrated view */}
                </div>
                
-               <AnalyticsControls />
+               
+               <AnalyticsControls defaultView={viewToUse} />
                <SmartSummary insights={insights} />
             </div>
 

@@ -9,8 +9,8 @@ export async function checkAndGenerateRoutinesAction() {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.name) return { success: false };
 
-    // We assume session.user.name is the username (ADAM/SASTI)
-    const count = await RoutineService.checkAndGenerateRoutines(session.user.name);
+    // We assume session.user.id is the User ID
+    const count = await RoutineService.checkAndGenerateRoutines((session.user as any).id);
     return { success: true, count };
 }
 
@@ -18,7 +18,7 @@ export async function getPendingTransactionsAction() {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.name) return [];
 
-    return RoutineService.getPendingTransactions(session.user.name);
+    return RoutineService.getPendingTransactions((session.user as any).id);
 }
 
 export async function confirmTransactionAction(id: string) {
@@ -42,7 +42,8 @@ export async function createRoutineAction(data: any) {
     try {
         await RoutineService.createRoutine({
             ...data,
-            owner: session.user.name
+            ...data,
+            owner: (session.user as any).id
         });
         revalidatePath("/routines");
         return { success: true };
@@ -56,7 +57,7 @@ export async function getRoutinesAction() {
      const session = await getServerSession(authOptions);
      if (!session || !session.user || !session.user.name) return [];
      
-     return RoutineService.getRoutines(session.user.name);
+     return RoutineService.getRoutines((session.user as any).id);
 }
 
 export async function updateRoutineAction(id: string, data: any) {

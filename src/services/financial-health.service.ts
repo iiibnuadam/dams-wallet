@@ -26,10 +26,19 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     }
 
     // 1. Helper: Identify "My Wallets"
+    // 1. Helper: Identify "My Wallets"
     let myWalletIds: string[] = [];
+    let ownerId: string | undefined = undefined;
+
     if (owner && owner !== "ALL") {
-        const wallets = await Wallet.find({ owner }).select("_id");
-        myWalletIds = wallets.map(w => w._id.toString());
+        const { default: User } = await import("@/models/User");
+        const user = await User.findOne({ username: owner }).select("_id");
+        if (user) {
+            ownerId = user._id.toString();
+            // Query wallets using the resolved User ID
+            const wallets = await Wallet.find({ owner: ownerId }).select("_id");
+            myWalletIds = wallets.map(w => w._id.toString());
+        }
     }
 
     const buildMatchQuery = (dateQuery: any) => {
@@ -76,7 +85,8 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     // Unified Trend Data: Income, Expense, Net Worth over the intervals.
     
     // Get Current Net Worth (Base)
-    const allWallets = owner && owner !== "ALL" ? await Wallet.find({ owner }) : await Wallet.find({});
+    // Get Current Net Worth (Base)
+    const allWallets = ownerId ? await Wallet.find({ owner: ownerId }) : await Wallet.find({});
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let currentNetWorth = allWallets.reduce((sum, w) => sum + (w.currentBalance || (w as any).initialBalance || 0), 0);
     

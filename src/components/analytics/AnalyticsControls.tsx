@@ -33,16 +33,22 @@ const OWNERS = [
 
 export function AnalyticsControls({ 
     showOwnerFilter = true,
-    defaultPreset = "3M"
+    defaultPreset = "3M",
+    defaultView = "ALL"
 }: { 
     showOwnerFilter?: boolean;
     defaultPreset?: "MTD" | "3M" | "ALL" | "7D" | "1M" | "YTD" | "1Y";
+    defaultView?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
   const currentMode = (searchParams.get("mode") as ReportMode) || "MONTH";
-  const currentOwner = searchParams.get("owner") || "ALL";
+  /* 
+    Changed 'owner' to 'view' to match the rest of the app's standard (ViewToggle). 
+    Server-side analytics page now resolves 'view' correctly.
+  */
+  const currentOwner = searchParams.get("view") || defaultView;
   const currentMonth = searchParams.get("month") || format(new Date(), "yyyy-MM");
   const currentWeek = searchParams.get("week") || format(new Date(), "yyyy-'W'II"); // ISO Week
   const currentYear = searchParams.get("year") || format(new Date(), "yyyy");
@@ -150,8 +156,8 @@ export function AnalyticsControls({
                     )}
                     onClick={() => {
                         const params = new URLSearchParams(searchParams.toString());
-                        if (owner.value === "ALL") params.delete("owner");
-                        else params.set("owner", owner.value);
+                        // Explicitly set view=ALL if selected, otherwise set the selected view
+                        params.set("view", owner.value);
                         router.push(`?${params.toString()}`, { scroll: false });
                     }}
                 >

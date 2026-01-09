@@ -59,7 +59,8 @@ export async function createTransaction(prevState: unknown, formData: FormData) 
 
   try {
      const transactionDate = new Date(data.date);
-     const createdBy = session.user?.name || "Unknown";
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     const createdBy = (session.user as any).id;
 
      // HANDLE TRANSFER (Split into Expense + Income)
      if (data.type === TransactionType.TRANSFER) {
@@ -197,7 +198,8 @@ export async function fetchTransactionPage(params: any) {
         return { success: false, message: "Unauthorized", data: [], pagination: null };
     }
     
-    const currentUser = (session.user as any)?.username || session.user?.name;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const currentUser = (session.user as any).id;
     const safeParams = { ...params, currentUser };
 
     try {

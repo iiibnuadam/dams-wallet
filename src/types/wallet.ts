@@ -28,7 +28,7 @@ export interface IWallet {
     _id: string; 
     name: string;
     type: WalletType;
-    owner: WalletOwner;
+    owner: string;
     initialBalance: number;
     color?: string; // Hex or Preset Key
     liabilityDetails?: ILiabilityDetails;

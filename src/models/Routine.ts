@@ -30,7 +30,7 @@ const RoutineSchema: Schema = new Schema(
     nextRun: { type: Date, required: true },
     lastRun: { type: Date },
     status: { type: String, enum: ["ACTIVE", "PAUSED"], default: "ACTIVE" },
-    owner: { type: String, required: true },
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }
 );

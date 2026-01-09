@@ -34,7 +34,8 @@ export async function createGoalAction(prevState: unknown, formData: FormData) {
     try {
         await createGoal({
             ...parsed.data,
-            owner: session.user?.name || "Unknown", // Or username if preferred
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            owner: (session.user as any).id, 
             targetDate: new Date(parsed.data.targetDate),
         });
         revalidatePath("/goals");
@@ -241,5 +242,25 @@ export async function deleteGoalPaymentAction(transactionId: string) {
 
     } catch (e: any) {
         return { success: false, message: e.message || "Failed to revert payment" };
+    }
+}
+
+import { getGoals } from "@/services/goal.service";
+
+export async function getGoalsAction() {
+    const session = await getServerSession(authOptions);
+    if (!session) return [];
+    
+    // Default to user name for ownership
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const owner = (session.user as any).id;
+    
+    try {
+        const goals = await getGoals(owner);
+        // Serialize IDs
+        return JSON.parse(JSON.stringify(goals));
+    } catch (error) {
+        console.error("Failed to fetch goals:", error);
+        return [];
     }
 }

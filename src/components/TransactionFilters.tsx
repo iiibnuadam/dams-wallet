@@ -9,10 +9,11 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon, FilterX } from "lucide-react";
+import { CalendarIcon, FilterX, X, Search, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategories } from "@/actions/category";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { getGoalsAction } from "@/actions/goal";
+import { Badge } from "@/components/ui/badge";
 
 interface TransactionFiltersProps {
     wallets: { _id: string; name: string }[];
@@ -41,24 +42,38 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
     const [searchQuery, setSearchQuery] = useState<string>(searchParams.get("q") || "");
     const [minAmount, setMinAmount] = useState<string>(searchParams.get("minAmount") || "");
     const [maxAmount, setMaxAmount] = useState<string>(searchParams.get("maxAmount") || "");
+    const [goalId, setGoalId] = useState<string>(searchParams.get("goalId") || "ALL");
 
     // Data for Categories
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [categories, setCategories] = useState<any[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [goals, setGoals] = useState<any[]>([]);
 
     useEffect(() => {
         async function fetchCats() {
             const data = await getCategories();
             setCategories(data);
         }
+        async function fetchGoals() {
+            const data = await getGoalsAction();
+            setGoals(data);
+        }
         fetchCats();
+        fetchGoals();
     }, []);
+
 
     const [isExpanded, setIsExpanded] = useState(false);
 
     // Apply Filters
     const applyFilters = () => {
         const params = new URLSearchParams();
+        
+        // Preserve userFilter and basic page params if needed (excluding page itself usually)
+        if (searchParams.get("userFilter")) {
+            params.set("userFilter", searchParams.get("userFilter")!);
+        }
         
         // Mode Params
         params.set("mode", mode);
@@ -73,15 +88,19 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
         if (type && type !== "ALL") params.set("type", type);
         if (showWalletFilter && walletId && walletId !== "ALL") params.set("walletId", walletId);
         if (categoryId && categoryId !== "ALL") params.set("categoryId", categoryId);
+        if (goalId && goalId !== "ALL") params.set("goalId", goalId);
         if (searchQuery) params.set("q", searchQuery);
         if (minAmount) params.set("minAmount", minAmount);
         if (maxAmount) params.set("maxAmount", maxAmount);
+
+        // Always reset to page 1
+        params.set("page", "1");
 
         const search = params.toString();
         const query = search ? `?${search}` : "";
         
         router.push(`${window.location.pathname}${query}`);
-        // Optional: Collapse after applying? Maybe keep open.
+        setIsExpanded(false);
     };
 
     const clearFilters = () => {
@@ -92,250 +111,306 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
         setType("ALL");
         setWalletId("ALL");
         setCategoryId("ALL");
+        setGoalId("ALL");
         setSearchQuery("");
         setMinAmount("");
         setMaxAmount("");
-        router.push(window.location.pathname); 
+        
+        // Push only preserved params
+        const params = new URLSearchParams();
+        if (searchParams.get("userFilter")) params.set("userFilter", searchParams.get("userFilter")!);
+        if (searchParams.get("currentUser")) params.set("currentUser", searchParams.get("currentUser")!);
+        
+        // Default month reset
+        params.set("mode", "MONTH");
+        params.set("month", format(new Date(), "yyyy-MM"));
+        
+        router.push(`${window.location.pathname}?${params.toString()}`); 
     };
 
-    // Check if any filter is active to show indicator
-    const hasActiveFilters = 
-        mode === "RANGE" || 
-        type !== "ALL" || 
-        (walletId !== "ALL" && showWalletFilter) || 
-        categoryId !== "ALL" || 
-        !!minAmount || 
-        !!maxAmount;
+    // Better removal: Update state AND URL
+    const safeRemove = (key: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        
+        if (key === 'q') {
+            setSearchQuery("");
+            params.delete("q");
+        } else if (key === 'type') {
+            setType("ALL");
+            params.delete("type");
+        } else if (key === 'walletId') {
+            setWalletId("ALL");
+            params.delete("walletId");
+        } else if (key === 'categoryId') {
+            setCategoryId("ALL");
+            params.delete("categoryId");
+        } else if (key === 'goalId') {
+            setGoalId("ALL");
+            params.delete("goalId");
+        } else if (key === 'amount') {
+            setMinAmount("");
+            setMaxAmount("");
+            params.delete("minAmount");
+            params.delete("maxAmount");
+        } else if (key === 'date') {
+            // Reset to default this month
+            setMode("MONTH");
+            setMonth(format(new Date(), "yyyy-MM"));
+            setStartDate(undefined);
+            setEndDate(undefined);
+            params.set("mode", "MONTH");
+            params.set("month", format(new Date(), "yyyy-MM"));
+            params.delete("startDate");
+            params.delete("endDate");
+        }
+
+        router.push(`${window.location.pathname}?${params.toString()}`);
+    };
+
+    // Active Filter Logic for Chips
+    const activeFilters = [];
+    
+    // Date (Only show if NOT current month)
+    const isDefaultDate = mode === "MONTH" && month === format(new Date(), "yyyy-MM");
+    if (!isDefaultDate) {
+        let label = "";
+        if (mode === "MONTH") label = format(new Date(month), "MMM yyyy");
+        else if (mode === "RANGE" && startDate && endDate) label = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM")}`;
+        else if (mode === "ALL") label = "All Time";
+        
+        if (label) activeFilters.push({ key: 'date', label, value: label });
+    }
+
+    if (type && type !== "ALL") activeFilters.push({ key: 'type', label: `Type: ${type}`, value: type });
+    if (showWalletFilter && walletId && walletId !== "ALL") {
+        const w = wallets.find(w => w._id === walletId);
+        activeFilters.push({ key: 'walletId', label: w ? w.name : "Wallet", value: walletId });
+    }
+    if (categoryId && categoryId !== "ALL") {
+        const c = categories.find(c => c.id === categoryId);
+        activeFilters.push({ key: 'categoryId', label: c ? c.name : "Category", value: categoryId });
+    }
+    if (goalId && goalId !== "ALL") {
+        const g = goals.find(g => g._id === goalId);
+        activeFilters.push({ key: 'goalId', label: `Goal: ${g ? g.name : "Unknown"}`, value: goalId });
+    }
+    if (minAmount || maxAmount) {
+        activeFilters.push({ key: 'amount', label: `Amount: ${minAmount || 0} - ${maxAmount || '∞'}`, value: 'amount' });
+    }
+
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-1 space-y-4">
-             {/* Main Toolbar */}
-             <div className="p-3 flex flex-col lg:flex-row gap-3">
-                <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <Input 
-                        placeholder="Search transactions..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                        className="pl-9 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 focus-visible:ring-offset-0"
-                    />
-                </div>
-                
-                <div className="flex gap-2 shrink-0">
-                    <Sheet open={isExpanded} onOpenChange={setIsExpanded}>
-                        <SheetTrigger asChild>
-                            <Button 
-                                variant="outline"
-                                className={cn("gap-2", hasActiveFilters && "border-primary text-primary bg-primary/5")}
+        <div className="space-y-3">
+             {/* Filter Bar */}
+             <div className="flex flex-col gap-3">
+                 <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search transactions..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                            className="pl-9 bg-background"
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => safeRemove('q')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             >
-                                <FilterX className="w-4 h-4" />
-                                Filters
-                                {hasActiveFilters && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+                    
+                    <Button 
+                        variant={isExpanded ? "secondary" : "outline"} 
+                        className="gap-2 shrink-0"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        Filters
+                        {activeFilters.length > 0 && (
+                            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 rounded-full text-[10px] pointer-events-none bg-background">
+                                {activeFilters.length}
+                            </Badge>
+                        )}
+                        {isExpanded ? <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 ml-1 text-muted-foreground" />}
+                    </Button>
+                 </div>
+
+                 {/* Collapsible Filter Section */}
+                 <div className={cn(
+                     "grid overflow-hidden transition-all duration-300 ease-in-out bg-muted/30 rounded-lg border border-border/50",
+                     isExpanded ? "grid-rows-[1fr] opacity-100 p-4 mb-2" : "grid-rows-[0fr] opacity-0 h-0 border-0"
+                 )}>
+                     <div className="min-h-0 overflow-hidden">
+                        {/* Refined Grid: Use more columns on large screens, stack on mobile */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                             {/* Date Filter */}
+                             <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Time Period</label>
+                                <div className="flex rounded-md shadow-sm">
+                                    <Button 
+                                        variant={mode === "MONTH" ? "default" : "outline"} 
+                                        size="sm" 
+                                        onClick={() => setMode("MONTH")}
+                                        className="rounded-r-none flex-1 text-xs px-2 h-9"
+                                    >
+                                        Month
+                                    </Button>
+                                    <Button 
+                                        variant={mode === "RANGE" ? "default" : "outline"} 
+                                        size="sm" 
+                                        onClick={() => setMode("RANGE")}
+                                        className="rounded-none flex-1 text-xs px-2 h-9 border-l-0"
+                                    >
+                                        Range
+                                    </Button>
+                                    <Button 
+                                        variant={mode === "ALL" ? "default" : "outline"} 
+                                        size="sm" 
+                                        onClick={() => setMode("ALL")}
+                                        className="rounded-l-none flex-1 text-xs px-2 h-9 border-l-0"
+                                    >
+                                        All
+                                    </Button>
+                                </div>
+
+                                {mode === "MONTH" && (
+                                    <Input type="month" className="h-9" value={month} onChange={(e) => setMonth(e.target.value)} />
                                 )}
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-xl sm:rounded-none sm:h-full sm:w-[400px] sm:max-w-none sm:border-l">
-                            <SheetHeader className="mb-4 text-left">
-                                <SheetTitle>Filter Transactions</SheetTitle>
-                                <SheetDescription>
-                                    Narrow down your transaction history.
-                                </SheetDescription>
-                            </SheetHeader>
+                                {mode === "RANGE" && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal h-9 px-2", !startDate && "text-muted-foreground")}>
+                                                    <span className="truncate">{startDate ? format(startDate, "dd MMM") : "Start"}</span>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal h-9 px-2", !endDate && "text-muted-foreground")}>
+                                                    <span className="truncate">{endDate ? format(endDate, "dd MMM") : "End"}</span>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Type Filter (Self Contained) */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Type</label>
+                                <Select value={type} onValueChange={setType}>
+                                    <SelectTrigger className="h-9 text-xs w-full"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All Types</SelectItem>
+                                        <SelectItem value="INCOME">Income</SelectItem>
+                                        <SelectItem value="EXPENSE">Expense</SelectItem>
+                                        <SelectItem value="GOAL">Goal Payment</SelectItem>
+                                        <SelectItem value="TRANSFER">Transfer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Wallet Filter (Self Contained) */}
+                            {showWalletFilter && (
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">Wallet</label>
+                                    <Select value={walletId} onValueChange={setWalletId}>
+                                        <SelectTrigger className="h-9 text-xs w-full"><SelectValue placeholder="All Wallets" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">All Wallets</SelectItem>
+                                            {wallets.map(w => <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                             {/* Category Filter (Self Contained) */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Category</label>
+                                <Select value={categoryId} onValueChange={setCategoryId}>
+                                    <SelectTrigger className="h-9 text-xs w-full"><SelectValue placeholder="Category" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All Categories</SelectItem>
+                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                        {categories.filter((c: any) => type === "ALL" || c.type === type).map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             
-                            <div className="space-y-6 pb-20">
-                                {/* Filter Inputs */}
-                                <div className="space-y-4">
-                                    {/* Period Mode */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground ml-1">Time Period</label>
-                                        <Select value={mode} onValueChange={(v: "MONTH" | "RANGE" | "ALL") => setMode(v)}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="MONTH">Specific Month</SelectItem>
-                                                <SelectItem value="RANGE">Date Range</SelectItem>
-                                                <SelectItem value="ALL">All Time</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    {/* Date Inputs based on Mode */}
-                                    {mode === "MONTH" && (
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-medium text-muted-foreground ml-1">Select Month</label>
-                                            <Input 
-                                                type="month" 
-                                                value={month} 
-                                                onChange={(e) => setMonth(e.target.value)} 
-                                            />
-                                        </div>
-                                    )}
-
-                                    {mode === "RANGE" && (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-muted-foreground ml-1">Start Date</label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {startDate ? format(startDate, "PP") : "Pick"}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-muted-foreground ml-1">End Date</label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {endDate ? format(endDate, "PP") : "Pick"}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    {/* Show Wallet Filter primarily if enabled */}
-                                    {showWalletFilter && (
-                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-medium text-muted-foreground ml-1">Wallet</label>
-                                            <Select value={walletId} onValueChange={setWalletId}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="All Wallets" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALL">All Wallets</SelectItem>
-                                                    {wallets.map((w) => (
-                                                        <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground ml-1">Category</label>
-                                        <Select value={categoryId} onValueChange={setCategoryId}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="All Categories" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ALL">All Categories</SelectItem>
-                                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                                {categories
-                                                    .filter((c: any) => type === "ALL" || c.type === type)
-                                                    .map((c: any) => (
-                                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground ml-1">Min Amount</label>
-                                        <MoneyInput 
-                                            placeholder="0" 
-                                            value={minAmount} 
-                                            onValueChange={setMinAmount}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground ml-1">Max Amount</label>
-                                        <MoneyInput 
-                                            placeholder="∞" 
-                                            value={maxAmount} 
-                                            onValueChange={setMaxAmount}
-                                        />
-                                    </div>
+                            {/* Goal Filter (Self Contained) */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Goal</label>
+                                <Select value={goalId} onValueChange={setGoalId}>
+                                    <SelectTrigger className="h-9 text-xs w-full"><SelectValue placeholder="Goal" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All Goals</SelectItem>
+                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                        {goals.map((g: any) => (
+                                            <SelectItem key={g._id} value={g._id}>{g.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            
+                            {/* Amount Range (Grouped) */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Amount Range</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <MoneyInput className="h-9 text-xs" placeholder="Min" value={minAmount} onValueChange={setMinAmount} />
+                                    <MoneyInput className="h-9 text-xs" placeholder="Max" value={maxAmount} onValueChange={setMaxAmount} />
                                 </div>
                             </div>
                             
-                            <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background flex gap-2">
-                                <Button variant="outline" className="flex-1" onClick={clearFilters}>
-                                    Reset
-                                </Button>
-                                <Button className="flex-1" onClick={() => { applyFilters(); setIsExpanded(false); }}>
-                                    Show Results
-                                </Button>
+                            {/* Actions */}
+                            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex justify-end gap-2 pt-2 border-t mt-2">
+                                <Button variant="ghost" size="sm" onClick={clearFilters}>Reset</Button>
+                                <Button size="sm" onClick={applyFilters}>Apply Filters</Button>
                             </div>
-                        </SheetContent>
-                    </Sheet>
-
-                    <Button onClick={applyFilters}>
-                        Search
-                    </Button>
-                </div>
-            </div>
-
-            {/* Quick Date Pills (Wrap) */}
-            <div className="px-3 pb-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 border-b border-zinc-100 dark:border-zinc-800">
-                {/* Date Group */}
-                <div className="flex flex-wrap gap-2 items-center">
-                    <Button 
-                        variant={mode === "MONTH" && month === format(new Date(), "yyyy-MM") ? "default" : "outline"} 
-                        size="sm" 
-                        className="rounded-full h-8 text-xs whitespace-nowrap"
-                        onClick={() => { setMode("MONTH"); setMonth(format(new Date(), "yyyy-MM")); }}
-                    >
-                        This Month
-                    </Button>
-                    <Button 
-                        variant={mode === "MONTH" && month === format(new Date(new Date().setMonth(new Date().getMonth() - 1)), "yyyy-MM") ? "default" : "outline"} 
-                        size="sm" 
-                        className="rounded-full h-8 text-xs whitespace-nowrap"
-                        onClick={() => { setMode("MONTH"); setMonth(format(new Date(new Date().setMonth(new Date().getMonth() - 1)), "yyyy-MM")); }}
-                    >
-                        Last Month
-                    </Button>
-                </div>
-                
-                {/* Divider (Desktop Only) */}
-                <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800 mx-2 self-center shrink-0 hidden sm:block"></div>
-                
-                {/* Type Group */}
-                <div className="flex flex-wrap gap-2 items-center">
-                    <Button 
-                        variant={type === "ALL" ? "secondary" : "ghost"} 
-                        size="sm" 
-                        className="rounded-full h-8 text-xs whitespace-nowrap"
-                        onClick={() => setType("ALL")}
-                    >
-                        All Types
-                    </Button>
-                    <Button 
-                        variant={type === "INCOME" ? "secondary" : "ghost"} 
-                        size="sm" 
-                        className="rounded-full h-8 text-xs whitespace-nowrap text-emerald-600 dark:text-emerald-400"
-                        onClick={() => setType("INCOME")}
-                    >
-                        Income
-                    </Button>
-                    <Button 
-                        variant={type === "EXPENSE" ? "secondary" : "ghost"} 
-                        size="sm" 
-                        className="rounded-full h-8 text-xs whitespace-nowrap text-red-600 dark:text-red-400"
-                        onClick={() => setType("EXPENSE")}
-                    >
-                        Expense
-                    </Button>
-                </div>
-            </div>
+                        </div>
+                     </div>
+                 </div>
+                 
+                 {/* Active Filters Chips */}
+                 {activeFilters.length > 0 && (
+                     <div className="flex flex-wrap gap-2 items-center animate-in fade-in slide-in-from-top-1">
+                        {activeFilters.map(filter => (
+                            <Badge key={filter.key} variant="secondary" className="pl-2 pr-1 py-1 gap-1 font-medium bg-muted/50 border-muted-foreground/20 text-foreground">
+                                {filter.label}
+                                <button 
+                                    onClick={() => safeRemove(filter.key)}
+                                    className="hover:bg-muted-foreground/20 rounded-full p-0.5 ml-1 transition-colors"
+                                >
+                                    <X className="w-3 h-3 text-muted-foreground" />
+                                </button>
+                            </Badge>
+                        ))}
+                        
+                        {(activeFilters.length > 2 || (activeFilters.length > 0 && !isDefaultDate)) && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                onClick={clearFilters}
+                            >
+                                Clear All
+                            </Button>
+                        )}
+                     </div>
+                 )}
+             </div>
         </div>
     );
 }

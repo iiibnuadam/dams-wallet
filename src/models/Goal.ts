@@ -16,7 +16,7 @@ export interface IGoal extends Document {
 const GoalSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
-    owner: { type: String, required: true },
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: true },
     targetDate: { type: Date, required: true },
     visibility: { type: String, enum: ["PRIVATE", "SHARED"], default: "SHARED" },
     sharedWith: { type: [String], default: [] },

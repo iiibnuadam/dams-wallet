@@ -20,7 +20,7 @@ export async function getRoutines(username?: string) {
     const query: any = {};
     if (username) query.owner = username;
     
-    const routines = await Routine.find(query).sort({ nextRun: 1 }).lean();
+    const routines = await Routine.find(query).sort({ nextRun: 1 }).populate("owner", "username name").lean();
     return JSON.parse(JSON.stringify(routines));
 }
 
@@ -121,7 +121,20 @@ export async function getPendingTransactions(username: string) {
     .sort({ date: 1 })
     .lean();
 
-    return JSON.parse(JSON.stringify(pending));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const serialized = pending.map((t: any) => ({
+        ...t,
+        _id: t._id.toString(),
+        wallet: t.wallet ? { ...t.wallet, _id: t.wallet._id.toString() } : undefined,
+        category: t.category ? { ...t.category, _id: t.category._id.toString() } : undefined,
+        routineId: t.routineId ? { ...t.routineId, _id: t.routineId._id.toString() } : undefined,
+        date: t.date.toISOString(),
+        createdBy: t.createdBy ? t.createdBy.toString() : "Unknown",
+        createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
+        updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
+    }));
+
+    return JSON.parse(JSON.stringify(serialized));
 }
 
 export async function confirmTransaction(transactionId: string) {

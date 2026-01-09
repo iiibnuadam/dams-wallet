@@ -170,6 +170,7 @@ export const getGoalDetails = cache(async (goalId: string) => {
       path: "goalItem",
       populate: { path: "goalId", select: "name" }
   })
+  .populate("createdBy", "name")
   .sort({ date: -1 }) // Newest first
   .lean();
 
@@ -188,6 +189,8 @@ export const getGoalDetails = cache(async (goalId: string) => {
       } : undefined,
       wallet: txn.wallet ? { ...txn.wallet, _id: txn.wallet._id?.toString() } : null,
       category: txn.category?.toString(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createdBy: (txn.createdBy as any)?.username || (txn.createdBy as any)?.name || "Unknown",
   }));
 
   return {

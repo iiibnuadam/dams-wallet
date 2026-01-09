@@ -18,7 +18,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
 
     const session = await getServerSession(authOptions);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const currentUser = (session?.user as any)?.username || session?.user?.name;
+    const currentUser = (session?.user as any)?.id;
 
     const wallets = await getWallets(); // For filter dropdown
 
@@ -30,7 +30,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-10">
-            <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+            <main className="max-w-7xl mx-auto px-4 py-8 space-y-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                         Transactions History
@@ -74,7 +74,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-1 border dark:border-zinc-800">
-                    <TransactionList transactions={transactions} pagination={pagination} />
+                    <TransactionList 
+                        key={JSON.stringify(params)} // Force remount when filters change
+                        transactions={transactions} 
+                        pagination={pagination} 
+                        contextParams={{ currentUser }} 
+                    />
                 </div>
             </main>
 

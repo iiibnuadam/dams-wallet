@@ -9,7 +9,21 @@ export async function getWallets(owner?: string) {
 
   const matchStage: any = { isDeleted: false };
   if (owner && owner !== "ALL") {
-      matchStage.owner = owner;
+      // Check if owner is a valid ObjectId, if so use it directly
+      const mongoose = (await import("mongoose")).default;
+      if (mongoose.Types.ObjectId.isValid(owner)) {
+          matchStage.owner = new mongoose.Types.ObjectId(owner);
+      } else {
+          // Otherwise resolve username to ID
+          const { default: User } = await import("../models/User");
+          const user = await User.findOne({ username: { $regex: new RegExp(`^${owner}$`, "i") } }).select("_id");
+          if (user) {
+              matchStage.owner = user._id;
+          } else {
+              // User specified but not found -> return empty
+              return [];
+          }
+      }
   }
 
   // Aggregate to calculate current balance
@@ -73,6 +87,7 @@ export async function getWallets(owner?: string) {
   return wallets.map(wallet => ({
       ...wallet,
       _id: wallet._id.toString(),
+      owner: wallet.owner?.toString(),
   }));
 }
 
@@ -142,6 +157,7 @@ export async function getWalletById(id: string) {
       return {
           ...wallet,
           _id: wallet._id.toString(),
+          owner: wallet.owner?.toString(),
       };
 }
 
@@ -199,6 +215,8 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
               { type: TransactionType.TRANSFER },
               { isTransfer: true }
           ];
+      } else if (searchParams.type === "GOAL") {
+          baseQuery['goalItem'] = { $exists: true, $ne: null };
       } else {
           baseQuery['type'] = searchParams.type;
       }
@@ -230,6 +248,15 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
   if (searchParams.maxAmount) {
       baseQuery['amount'] = { ...baseQuery['amount'], $lte: Number(searchParams.maxAmount) };
   }
+  
+  // Goal Filter
+  if (searchParams.goalId && searchParams.goalId !== "ALL") {
+       // Find all items for this goal
+       const { default: GoalItem } = await import("../models/GoalItem");
+       const items = await GoalItem.find({ goalId: searchParams.goalId }).select("_id");
+       const itemIds = items.map(i => i._id);
+       baseQuery['goalItem'] = { $in: itemIds };
+  }
 
   // 4. Fetch Data
   // 4. Fetch Data with Pagination
@@ -249,6 +276,7 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
         path: "relatedTransactionId",
         populate: { path: "wallet" }
       })
+      .populate("createdBy", "username name")
       .lean();
 
   // 5. Process Data
@@ -414,6 +442,8 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
           budgetItem: t.budgetItem ? t.budgetItem.toString() : undefined,
           createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
           updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          createdBy: (t.createdBy as any)?.username || (t.createdBy as any)?.name || "Unknown",
           isTransfer: t.isTransfer,
           relatedTransaction: t.relatedTransactionId ? {
               _id: t.relatedTransactionId._id.toString(),

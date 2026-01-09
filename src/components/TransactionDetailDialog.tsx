@@ -88,6 +88,12 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
                             <span className="font-medium">{transaction.description || "-"}</span>
                         </div>
 
+                        {/* Created By */}
+                        <div className="flex justify-between py-2 border-b">
+                            <span className="text-muted-foreground">Created By</span>
+                            <span className="font-medium">{transaction.createdBy || "Unknown"}</span>
+                        </div>
+
                         {/* Category or Goal Indicator */}
                         {!isTransfer && (
                             <div className="flex justify-between py-2 border-b items-center">

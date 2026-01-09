@@ -44,9 +44,11 @@ export function GoalHistoryList({ history, itemColorMap = {} }: GoalHistoryListP
             />
 
             <h3 className="font-semibold text-lg">Payment History</h3>
-            <div className="space-y-3">
+            <div className="space-y-3 bg-card rounded-2xl border p-2 shadow-sm">
                 {history.map((txn) => {
-                    const color = itemColorMap[txn.goalItem] || "#10b981"; // Default to emerald-500
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const itemId = typeof txn.goalItem === 'object' ? (txn.goalItem as any)?._id : txn.goalItem;
+                    const color = itemColorMap[itemId] || "#10b981"; // Default to emerald-500
                     
                     return (
                         <div 

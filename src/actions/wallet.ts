@@ -24,19 +24,8 @@ export async function createWallet(prevState: unknown, formData: FormData) {
         return { message: "Unauthorized", success: false };
     }
 
-    // Map session user to WalletOwner
-    let owner: WalletOwner;
-    const userName = session.user.name?.toUpperCase();
-
-    if (userName === "ADAM") {
-        owner = WalletOwner.ADAM;
-    } else if (userName === "SASTI") {
-        owner = WalletOwner.SASTI;
-    } else {
-        // Fallback or error - for now defaulting to ADAM for dev if unknown, or error
-        // Better to error to be safe
-        return { message: "Invalid user for wallet creation", success: false };
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const owner = (session.user as any).id;
 
     const initialBalanceRaw = formData.get("initialBalance")?.toString() || "0";
     const initialBalanceClean = initialBalanceRaw.replace(/\D/g, "");
@@ -182,8 +171,8 @@ export async function getWalletsAction() {
     
     try {
         const { getWallets } = await import("@/services/wallet.service");
-        // Determine owner based on session or default to ADAM
-        const owner = session.user.name === "SASTI" ? "SASTI" : "ADAM";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const owner = (session.user as any).id;
         const wallets = await getWallets(owner);
         return JSON.parse(JSON.stringify(wallets));
     } catch (error) {

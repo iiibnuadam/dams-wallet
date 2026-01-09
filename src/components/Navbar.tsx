@@ -5,8 +5,9 @@ import { useTheme } from "next-themes"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, Wallet, User } from "lucide-react"
+import { Moon, Sun, Wallet, LogOut } from "lucide-react"
 import { ProfileDialog } from "@/components/ProfileDialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function Navbar() {
   const { setTheme, theme } = useTheme()
@@ -33,18 +34,43 @@ export function Navbar() {
         {/* Mobile Header: Links Removed, Sidebar handles Desktop Nav */}
         <div className="flex-1" />
 
-        <div className="flex items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-        </div>
+        <div className="flex items-center gap-2">
+            <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+            </Button>
+
+            {session?.user && (
+                <>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full"
+                        onClick={() => setProfileOpen(true)}
+                    >
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
+                            <AvatarFallback>{session.user.name?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                        </Avatar>
+                    </Button>
+                    
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        onClick={() => signOut()}
+                    >
+                        <LogOut className="h-5 w-5" />
+                    </Button>
+
+                    <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+                </>
+            )}
         </div>
       </div>
     </nav>
