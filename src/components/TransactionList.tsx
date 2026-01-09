@@ -33,6 +33,7 @@ interface PaginationMeta {
 interface TransactionListProps {
   transactions: TransactionDTO[];
   pagination?: PaginationMeta;
+  contextParams?: Record<string, string | number>;
 }
 
 const formatCurrency = (amount: number) => {
@@ -56,7 +57,7 @@ const formatDateGroup = (dateStr: string) => {
   return date.toLocaleDateString("en-US", { weekday: 'long' });
 };
 
-export function TransactionList({ transactions: initialTransactions, pagination: initialPagination }: TransactionListProps) {
+export function TransactionList({ transactions: initialTransactions, pagination: initialPagination, contextParams }: TransactionListProps) {
   const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<TransactionDTO[]>(initialTransactions);
   const [pagination, setPagination] = useState<PaginationMeta | undefined>(initialPagination);
@@ -78,7 +79,7 @@ export function TransactionList({ transactions: initialTransactions, pagination:
     const nextPage = pagination.currentPage + 1;
     
     // Convert search params to object
-    const params: any = { page: nextPage, limit: 15 };
+    const params: any = { page: nextPage, limit: 15, ...contextParams };
     searchParams.forEach((value, key) => { params[key] = value; });
 
     const res = await fetchTransactionPage(params);

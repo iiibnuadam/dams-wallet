@@ -130,7 +130,7 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
                                 <FormControl>
                                     <MoneyInput 
                                         placeholder="0"
-                                        value={field.value}
+                                        value={field.value as number}
                                         onValueChange={field.onChange}
                                     />
                                 </FormControl>

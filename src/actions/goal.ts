@@ -187,8 +187,7 @@ export async function updateGroupStyleAction(formData: FormData) {
 }
 
 import { upsertGroupStyle } from "@/services/goal.service";
-import { Transaction } from "@/models/Transaction"; // Assuming you need this for soft delete directly or use service
-import { GoalItem } from "@/models/GoalItem"; // Assuming you need this
+
 
 // We need to import Transaction model to use it in deleteGoalPaymentAction
 // It seems models are not exported from services usually, but we need to do logic here

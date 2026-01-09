@@ -28,10 +28,10 @@ export async function createDebtAction(data: any) {
 
 export async function updateDebtAction(id: string, data: any) {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) return { success: false, message: "Unauthorized" };
+    if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
-        await DebtService.updateDebt(id, data);
+        await DebtService.updateDebt(id, data, session.user.name);
         revalidatePath("/debts");
         return { success: true };
     } catch (e) {
@@ -42,7 +42,7 @@ export async function updateDebtAction(id: string, data: any) {
 
 export async function deleteDebtAction(id: string) {
     const session = await getServerSession(authOptions);
-    if (!session) return { success: false, message: "Unauthorized" };
+    if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
         await DebtService.deleteDebt(id, session.user.name!);
@@ -55,7 +55,7 @@ export async function deleteDebtAction(id: string) {
 
 export async function settleDebtAction(id: string, walletId: string) {
     const session = await getServerSession(authOptions);
-    if (!session) return { success: false, message: "Unauthorized" };
+    if (!session || !session.user || !session.user.name) return { success: false, message: "Unauthorized" };
 
     try {
         const { settleDebt } = await import("@/services/debt.service");

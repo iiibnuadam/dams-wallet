@@ -178,7 +178,7 @@ export async function deleteWallet(id: string) {
 
 export async function getWalletsAction() {
     const session = await getServerSession(authOptions);
-    if (!session) return [];
+    if (!session || !session.user) return [];
     
     try {
         const { getWallets } = await import("@/services/wallet.service");

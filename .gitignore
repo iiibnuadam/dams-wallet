@@ -42,3 +42,6 @@ next-env.d.ts
 
 # seed
 src/scripts/seed.ts
+
+# documentation
+/documentation

@@ -4,6 +4,7 @@ export enum WalletType {
   EWALLET = "EWALLET",
   CASH = "CASH",
   LIABILITY = "LIABILITY",
+  INVESTMENT = "INVESTMENT",
 }
 
 export enum WalletOwner {
