@@ -38,10 +38,52 @@ export function Navbar() {
             <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                onClick={(e) => {
+                    const newTheme = theme === 'dark' ? 'light' : 'dark';
+                    
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    if (!(document as any).startViewTransition) {
+                        setTheme(newTheme);
+                        return;
+                    }
+
+                    const x = e.nativeEvent.clientX;
+                    const y = e.nativeEvent.clientY;
+                    const endRadius = Math.hypot(
+                        Math.max(x, innerWidth - x),
+                        Math.max(y, innerHeight - y)
+                    );
+
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const transition = (document as any).startViewTransition(() => {
+                        setTheme(newTheme);
+                    });
+
+                    transition.ready.then(() => {
+                        const clipPath = [
+                            `circle(0px at ${x}px ${y}px)`,
+                            `circle(${endRadius}px at ${x}px ${y}px)`,
+                        ];
+                        
+                        document.documentElement.animate(
+                            {
+                                clipPath: clipPath,
+                            },
+                            {
+                                duration: 500,
+                                easing: "ease-in-out",
+                                pseudoElement: "::view-transition-new(root)",
+                            }
+                        );
+                    });
+                }}
+                className="relative overflow-hidden" // Clip the sliding icons
             >
-                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                {/* Sun: Slides up and out in dark mode */}
+                <Sun className="h-[1.2rem] w-[1.2rem] transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-0 opacity-100 dark:-translate-y-full dark:opacity-0" />
+                
+                {/* Moon: Slides up and in from bottom in dark mode */}
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-full opacity-0 dark:translate-y-0 dark:opacity-100" />
                 <span className="sr-only">Toggle theme</span>
             </Button>
 

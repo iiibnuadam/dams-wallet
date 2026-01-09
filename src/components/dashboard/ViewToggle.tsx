@@ -24,9 +24,9 @@ export function ViewToggle({ defaultView = "ALL" }: ViewToggleProps) {
   return (
     <Tabs value={currentView} onValueChange={onViewChange}>
       <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="ALL">All / Joint</TabsTrigger>
-        <TabsTrigger value={WalletOwner.ADAM}>{WalletOwner.ADAM}</TabsTrigger>
-        <TabsTrigger value={WalletOwner.SASTI}>{WalletOwner.SASTI}</TabsTrigger>
+        <TabsTrigger value="ALL">All</TabsTrigger>
+        <TabsTrigger value={WalletOwner.ADAM}>Adam</TabsTrigger>
+        <TabsTrigger value={WalletOwner.SASTI}>Sasti</TabsTrigger>
       </TabsList>
     </Tabs>
   );

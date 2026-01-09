@@ -125,9 +125,36 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
              <div className="w-full">
                 {collapsed ? (
                     <div className="flex justify-center">
-                        <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-10 w-10 text-muted-foreground hover:text-foreground relative overflow-hidden" 
+                            onClick={(e) => {
+                                const newTheme = theme === 'dark' ? 'light' : 'dark';
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                if (!(document as any).startViewTransition) {
+                                    setTheme(newTheme);
+                                    return;
+                                }
+
+                                const x = e.nativeEvent.clientX;
+                                const y = e.nativeEvent.clientY;
+                                const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const transition = (document as any).startViewTransition(() => setTheme(newTheme));
+
+                                transition.ready.then(() => {
+                                    const clipPath = [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`];
+                                    document.documentElement.animate(
+                                        { clipPath },
+                                        { duration: 500, easing: "ease-in-out", pseudoElement: "::view-transition-new(root)" }
+                                    );
+                                });
+                            }}
+                        >
+                             <Sun className="h-5 w-5 transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-0 opacity-100 dark:-translate-y-full dark:opacity-0" />
+                             <Moon className="absolute h-5 w-5 transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-full opacity-0 dark:translate-y-0 dark:opacity-100" />
                              <span className="sr-only">Toggle theme</span>
                         </Button>
                     </div>
@@ -135,11 +162,33 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
                     <Button 
                         variant="ghost" 
                         className="w-full justify-start px-3 py-2.5 gap-3 text-muted-foreground hover:text-foreground"
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                        onClick={(e) => {
+                            const newTheme = theme === 'dark' ? 'light' : 'dark';
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            if (!(document as any).startViewTransition) {
+                                setTheme(newTheme);
+                                return;
+                            }
+
+                            const x = e.nativeEvent.clientX;
+                            const y = e.nativeEvent.clientY;
+                            const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const transition = (document as any).startViewTransition(() => setTheme(newTheme));
+
+                            transition.ready.then(() => {
+                                const clipPath = [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`];
+                                document.documentElement.animate(
+                                    { clipPath },
+                                    { duration: 500, easing: "ease-in-out", pseudoElement: "::view-transition-new(root)" }
+                                );
+                            });
+                        }}
                     >
-                         <div className="flex items-center justify-center w-5 h-5">
-                             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                         <div className="flex items-center justify-center w-5 h-5 relative overflow-hidden">
+                             <Sun className="h-5 w-5 transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-0 opacity-100 dark:-translate-y-full dark:opacity-0" />
+                             <Moon className="absolute h-5 w-5 transition-all duration-500 ease-[var(--ease-bouncy)] translate-y-full opacity-0 dark:translate-y-0 dark:opacity-100" />
                          </div>
                          <span className="font-medium">Theme</span>
                     </Button>
