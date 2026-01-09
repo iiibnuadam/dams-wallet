@@ -31,6 +31,7 @@ const formSchema = z.object({
   wallet: z.string().min(1, "Source wallet is required"),
   targetWallet: z.string().optional(),
   category: z.string().optional(),
+  status: z.enum(["ACTIVE", "PAUSED"]).optional(),
 });
 
 interface RoutineFormDialogProps {
@@ -68,6 +69,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
       wallet: routine?.wallet || "",
       targetWallet: routine?.targetWallet || "",
       category: routine?.category || "",
+      status: routine?.status || "ACTIVE",
     },
   });
 
@@ -88,6 +90,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
         wallet: values.wallet,
         targetWallet: values.type === "TRANSFER" ? values.targetWallet : undefined,
         category: values.category || undefined,
+        status: values.status || "ACTIVE",
     };
 
     let res;
@@ -184,6 +187,28 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
                 />
             </div>
             
+            <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "ACTIVE"}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="PAUSED">Paused</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+
              <FormField
                 control={form.control}
                 name="startDate"

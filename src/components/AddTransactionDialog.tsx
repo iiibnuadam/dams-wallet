@@ -65,13 +65,17 @@ interface WalletOption {
     name: string;
 }
 
+
 interface AddTransactionDialogProps {
     wallets: WalletOption[]; 
     defaultWalletId?: string;
     trigger?: React.ReactNode;
+    defaultGoalItemId?: string;
+    defaultDescription?: string;
 }
 
-export function AddTransactionDialog({ wallets, defaultWalletId, trigger }: AddTransactionDialogProps) {
+
+export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaultGoalItemId, defaultDescription }: AddTransactionDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(ClientTransactionType.EXPENSE);
   const params = useParams();
@@ -98,7 +102,7 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger }: AddT
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: "",
-      description: "",
+      description: defaultDescription || "",
       type: ClientTransactionType.EXPENSE,
       category: "",
       wallet: effectiveDefaultWalletId || (wallets.length > 0 ? wallets[0]._id : ""),
@@ -157,6 +161,9 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger }: AddT
     formData.append("wallet", values.wallet);
     if (values.category) formData.append("category", values.category);
     formData.append("date", values.date);
+    if (defaultGoalItemId) {
+        formData.append("goalItem", defaultGoalItemId);
+    }
     
     if (values.type === ClientTransactionType.TRANSFER) {
         if (values.targetWallet) {

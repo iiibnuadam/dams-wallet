@@ -276,12 +276,14 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
        recentTransactions: recentTransactions.map((t: any) => ({
           ...t,
           _id: t._id.toString(),
-          wallet: { name: t.wallet.name, _id: t.wallet._id.toString() },
+          wallet: t.wallet ? { name: t.wallet.name, _id: t.wallet._id.toString() } : { name: "Unknown Wallet", _id: "" },
           targetWallet: t.targetWallet ? { name: t.targetWallet.name, _id: t.targetWallet._id.toString() } : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           category: t.category ? { name: (t.category as any).name } : undefined,
           date: t.date.toISOString(),
+          
           // Fix serialization for Mongoose types
+          goalItem: t.goalItem ? t.goalItem.toString() : undefined,
           routineId: t.routineId ? t.routineId.toString() : undefined,
           createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
           updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,
@@ -534,12 +536,14 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
        transactions: transactions.map((t: any) => ({
           ...t,
           _id: t._id.toString(),
-          wallet: { name: t.wallet.name, _id: t.wallet._id.toString() },
+          wallet: t.wallet ? { name: t.wallet.name, _id: t.wallet._id.toString() } : { name: "Unknown Wallet", _id: "" },
           targetWallet: t.targetWallet ? { name: t.targetWallet.name, _id: t.targetWallet._id.toString() } : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           category: t.category ? { name: (t.category as any).name } : undefined,
           date: t.date.toISOString(),
+          
           // Fix serialization for Mongoose types
+          goalItem: t.goalItem ? t.goalItem.toString() : undefined,
           routineId: t.routineId ? t.routineId.toString() : undefined,
           createdAt: t.createdAt ? t.createdAt.toISOString() : undefined,
           updatedAt: t.updatedAt ? t.updatedAt.toISOString() : undefined,

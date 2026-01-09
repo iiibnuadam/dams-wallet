@@ -16,7 +16,7 @@ import { ContributionRadar } from "@/components/analytics/health/ContributionRad
 import { SmartSummary } from "@/components/analytics/health/SmartSummary";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Clock } from "lucide-react";
+import { BarChart3, Clock } from "lucide-react";
 
 
 export const dynamic = "force-dynamic";
@@ -36,12 +36,15 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-10">
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
             <div className="flex flex-col gap-4">
                {/* 1. Top Section: Controls & AI Summary */}
                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Finances 📊</h1>
+                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                            Financial Analytics
+                            <BarChart3 className="w-6 h-6" />
+                        </h1>
                         <p className="text-muted-foreground">Comprehensive health check & reports.</p>
                    </div>
                    {/* Removed separate button, integrated view */}

@@ -32,7 +32,10 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-10">
             <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Transactions History</h1>
+                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        Transactions History
+                        <History className="w-6 h-6" />
+                    </h1>
                     <p className="text-muted-foreground">View and filter your financial activity.</p>
                 </div>
 

@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { createTransaction as createTransactionService } from "@/services/transaction.service";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { TransactionType } from "@/models/Transaction";
+import { TransactionType, PaymentPhase } from "@/types/transaction";
 
 const transactionSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
@@ -16,6 +16,8 @@ const transactionSchema = z.object({
   category: z.string().optional(),
   adminFee: z.coerce.number().optional().default(0),
   date: z.string().or(z.date()),
+  goalItem: z.string().optional(),
+  paymentPhase: z.nativeEnum(PaymentPhase).optional(),
 })
 .refine((data) => {
     if (data.type === TransactionType.TRANSFER) {
@@ -42,6 +44,8 @@ export async function createTransaction(prevState: unknown, formData: FormData) 
     category: formData.get("category")?.toString() || undefined,
     adminFee: formData.get("adminFee"),
     date: formData.get("date"),
+    goalItem: formData.get("goalItem")?.toString() || undefined,
+    paymentPhase: formData.get("paymentPhase")?.toString() || undefined,
   };
 
   const parsed = transactionSchema.safeParse(rawData);

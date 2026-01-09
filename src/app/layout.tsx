@@ -36,6 +36,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { GlobalAddTransactionButton } from "@/components/GlobalAddTransactionButton";
 
+import { Toaster } from "@/components/ui/sonner";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -69,6 +71,7 @@ export default async function RootLayout({
             <BottomNav wallets={wallets} />
             
             <GlobalAddTransactionButton wallets={wallets} />
+            <Toaster />
           </ThemeProvider>
         </AuthProvider>
       </body>

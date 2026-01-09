@@ -2,6 +2,7 @@ import { Navbar } from "@/components/Navbar";
 import { getWallets } from "@/services/wallet.service";
 import { WalletCard } from "@/components/WalletCard";
 import { AddWalletDialog } from "@/components/AddWalletDialog";
+import { Wallet } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,13 @@ export default async function WalletsPage() {
             <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
                 <section className="space-y-6">
                      <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold tracking-tight">My Wallets</h1>
+                      <div>
+                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                            My Wallets
+                            <Wallet className="w-6 h-6" />
+                        </h1>
+                        <p className="text-muted-foreground">Manage your financial accounts.</p>
+                      </div>
                         <AddWalletDialog />
                     </div>
 

@@ -11,11 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NAV_LINKS } from "@/lib/nav-config";
 import { 
-  LayoutDashboard, 
   Wallet, 
-  History, 
-  Repeat, 
   User, 
   LogOut, 
   Moon, 
@@ -24,7 +22,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronRight,
-  BarChart3
 } from "lucide-react";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -47,14 +44,7 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  const links = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/wallets", label: "Wallets", icon: Wallet },
-    { href: "/transactions", label: "Transactions", icon: History },
-    { href: "/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/routines", label: "Routines", icon: Repeat },
-    { href: "/debts", label: "Debt & Receivables", icon: History },
-  ];
+  const links = NAV_LINKS;
 
   if (!mounted) return null;
 

@@ -10,6 +10,8 @@ import { RoutineFormDialog } from "@/components/routine/RoutineFormDialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { updateRoutineAction } from "@/actions/routine";
 
 interface RoutineListProps {
   wallets: any[];
@@ -34,6 +36,22 @@ export function RoutineList({ wallets }: RoutineListProps) {
         if (confirm("Are you sure you want to delete this routine? Future transactions will not be generated.")) {
              await deleteRoutineAction(id);
              setRoutines(prev => prev.filter(r => r._id !== id));
+        }
+    };
+
+    const handleToggleStatus = async (id: string, currentStatus: string) => {
+        const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
+        
+        // Optimistic update
+        setRoutines(prev => prev.map(r => 
+            r._id === id ? { ...r, status: newStatus } : r
+        ));
+
+        const res = await updateRoutineAction(id, { status: newStatus });
+        if (!res.success) {
+            // Revert if failed
+            alert("Failed to update status");
+            fetchRoutines();
         }
     };
 
@@ -84,8 +102,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
 
             <div className="flex items-center justify-between">
                 <div>
-                   <h2 className="text-xl font-bold tracking-tight">Active Routines</h2>
-                   <p className="text-sm text-muted-foreground">Manage your recurring payments and automations.</p>
+                   <h2 className="text-lg font-semibold tracking-tight">Active List</h2>
                 </div>
                 <RoutineFormDialog wallets={wallets} onSaved={fetchRoutines} />
             </div>
@@ -106,15 +123,26 @@ export function RoutineList({ wallets }: RoutineListProps) {
                             <CardHeader className="pb-2 pl-6">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                        <Badge variant="outline" className="text-xs font-normal bg-zinc-50 dark:bg-zinc-900">
-                                            {routine.frequency}
-                                        </Badge>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-xs font-normal bg-zinc-50 dark:bg-zinc-900">
+                                                {routine.frequency}
+                                            </Badge>
+                                            <Badge variant={routine.status === "ACTIVE" ? "default" : "secondary"} className={routine.status === "ACTIVE" ? "bg-green-500 hover:bg-green-600" : ""}>
+                                                {routine.status || "ACTIVE"}
+                                            </Badge>
+                                        </div>
                                         <CardTitle className="text-lg leading-tight">{routine.description}</CardTitle>
                                     </div>
-                                    <div className={`font-bold text-lg ${
-                                         isExpense ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
-                                    }`}>
-                                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(routine.amount)}
+                                    <div className="flex flex-col items-end gap-2">
+                                        <div className={`font-bold text-lg ${
+                                             isExpense ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+                                        }`}>
+                                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(routine.amount)}
+                                        </div>
+                                        <Switch 
+                                            checked={routine.status === "ACTIVE" || !routine.status}
+                                            onCheckedChange={() => handleToggleStatus(routine._id, routine.status || "ACTIVE")}
+                                        />
                                     </div>
                                 </div>
                             </CardHeader>

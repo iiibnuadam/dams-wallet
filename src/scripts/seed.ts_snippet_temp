@@ -1,0 +1,30 @@
+  // Seed Goals
+  const weddingGoal = await Goal.findOneAndUpdate(
+      { name: "Wedding 2026" },
+      { 
+          name: "Wedding 2026", 
+          owner: "Sasti", 
+          targetDate: new Date("2026-12-31") 
+      },
+      { upsert: true, new: true }
+  );
+  console.log("  - Ensured Goal: Wedding 2026");
+
+  const goalItems = [
+      { goalId: weddingGoal._id, groupName: "Venue", name: "Hall Rental", estimatedAmount: 50000000 },
+      { goalId: weddingGoal._id, groupName: "Venue", name: "Decoration", estimatedAmount: 25000000 },
+      { goalId: weddingGoal._id, groupName: "Catering", name: "Buffet (500 pax)", estimatedAmount: 75000000 },
+      { goalId: goalItems[3].goalId, groupName: "Catering", name: "Food Stalls", estimatedAmount: 20000000 },
+      { goalId: weddingGoal._id, groupName: "Attire", name: "Bride Dress", estimatedAmount: 15000000 },
+      { goalId: weddingGoal._id, groupName: "Attire", name: "Groom Suit", estimatedAmount: 8000000 },
+      { goalId: weddingGoal._id, groupName: "Documentation", name: "Photo & Video", estimatedAmount: 18000000 },
+  ];
+
+  for (const item of goalItems) {
+      await GoalItem.findOneAndUpdate(
+          { goalId: item.goalId, name: item.name },
+          item,
+          { upsert: true, new: true }
+      );
+  }
+  console.log(`  - Ensured ${goalItems.length} goal items`);

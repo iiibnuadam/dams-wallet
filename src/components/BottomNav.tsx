@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, Plus, Wallet, MoreHorizontal, User, Repeat, BarChart3 } from "lucide-react";
+import { LayoutDashboard, History, Plus, Wallet, MoreHorizontal, User, Repeat, BarChart3, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddTransactionDialog } from "./AddTransactionDialog";
 import { AddWalletDialog } from "./AddWalletDialog";
@@ -11,6 +11,7 @@ import { useState } from "react";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { useSession } from "next-auth/react";
 
+import { NAV_LINKS } from "@/lib/nav-config";
 import { Link as LinkIcon, Menu, Moon, Sun, X } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { useTheme } from "next-themes";
@@ -23,6 +24,7 @@ export function BottomNav({ wallets }: BottomNavProps) {
     const { data: session } = useSession();
     const pathname = usePathname();
     const [profileOpen, setProfileOpen] = useState(false);
+    const [open, setOpen] = useState(false);
     const { setTheme, theme } = useTheme();
 
     if (!session) return null;
@@ -85,7 +87,8 @@ export function BottomNav({ wallets }: BottomNavProps) {
                     <span>Transactions</span>
                 </Link>
 
-                <Drawer>
+
+                <Drawer open={open} onOpenChange={setOpen}>
                     <DrawerTrigger asChild>
                         <button className="flex flex-col items-center gap-1 min-w-[60px] text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors outline-none">
                             <Menu className="w-5 h-5" />
@@ -97,38 +100,30 @@ export function BottomNav({ wallets }: BottomNavProps) {
                             <DrawerTitle>Menu</DrawerTitle>
                         </DrawerHeader>
                         <div className="p-4 grid grid-cols-4 gap-4">
-                             <Link 
-                                href="/analytics" 
-                                className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                                <div className={cn("p-2 rounded-full bg-primary/10 text-primary", isActive("/analytics") && "bg-primary text-primary-foreground")}>
-                                    <BarChart3 className="w-6 h-6" />
-                                </div>
-                                <span className="text-xs font-medium text-center">Analytics</span>
-                            </Link>
-
-                             <Link 
-                                href="/routines" 
-                                className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                                <div className={cn("p-2 rounded-full bg-primary/10 text-primary", isActive("/routines") && "bg-primary text-primary-foreground")}>
-                                    <Repeat className="w-6 h-6" />
-                                </div>
-                                <span className="text-xs font-medium text-center">Routines</span>
-                            </Link>
-
-                             <Link 
-                                href="/debts" 
-                                className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                                <div className={cn("p-2 rounded-full bg-primary/10 text-primary", isActive("/debts") && "bg-primary text-primary-foreground")}>
-                                    <History className="w-6 h-6" />
-                                </div>
-                                <span className="text-xs font-medium text-center">Debts</span>
-                            </Link>
+                             {NAV_LINKS
+                                .filter(link => !["/", "/wallets", "/transactions"].includes(link.href))
+                                .map(link => {
+                                    const Icon = link.icon;
+                                    return (
+                                        <Link 
+                                            key={link.href}
+                                            href={link.href}
+                                            onClick={() => setOpen(false)}
+                                            className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                        >
+                                            <div className={cn("p-2 rounded-full bg-primary/10 text-primary", isActive(link.href) && "bg-primary text-primary-foreground")}>
+                                                <Icon className="w-6 h-6" />
+                                            </div>
+                                            <span className="text-xs font-medium text-center">{link.label}</span>
+                                        </Link>
+                                    );
+                                })}
 
                             <button 
-                                onClick={() => setProfileOpen(true)}
+                                onClick={() => {
+                                    setOpen(false);
+                                    setProfileOpen(true);
+                                }}
                                 className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
                             >
                                 <div className="p-2 rounded-full bg-primary/10 text-primary">

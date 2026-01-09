@@ -89,7 +89,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
          
          // Reverse the effect of these transactions to get NW at 'end'
          for (const txn of futureTxns) {
-             const walletId = txn.wallet.toString();
+             const walletId = txn.wallet?.toString() || "unknown";
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
              const targetWalletId = (txn as any).targetWallet?.toString();
              const isMySource = myWalletIds.length === 0 || myWalletIds.includes(walletId);
@@ -131,7 +131,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
         if (intervalMap.has(label)) {
              const entry = intervalMap.get(label)!;
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-             const walletId = (txn.wallet as any)._id?.toString() || txn.wallet.toString();
+             const walletId = (txn.wallet as any)?._id?.toString() || txn.wallet?.toString() || "unknown";
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
              const targetWalletId = (txn as any).targetWallet?.toString();
              const isMySource = myWalletIds.length === 0 || myWalletIds.includes(walletId);
@@ -195,7 +195,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     
     for (const txn of currentTxns) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wName = (txn.wallet as any).name;
+        const wName = (txn.wallet as any)?.name || "Unknown Wallet";
         
         if (txn.type === TransactionType.INCOME) {
             // Source: "Salary" or "Income" -> Wallet
@@ -254,7 +254,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     currentTxns.forEach(txn => {
         if (txn.type === TransactionType.EXPENSE) {
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const wOwner = (txn.wallet as any).owner;
+            const wOwner = (txn.wallet as any)?.owner || "Unknown";
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const catName = (txn.category as any)?.name || "Other";
             

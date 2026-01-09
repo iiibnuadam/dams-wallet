@@ -117,6 +117,10 @@ export async function getTransactions(params: any) {
                 path: "relatedTransactionId",
                 populate: { path: "wallet" }
             })
+            .populate({
+                path: "goalItem",
+                populate: { path: "goalId", select: "name" }
+            })
             .lean(),
         Transaction.countDocuments(query)
     ]);
@@ -145,7 +149,15 @@ export async function getTransactions(params: any) {
                 _id: t.relatedTransactionId.wallet._id.toString()
             } : undefined
         } : undefined,
-        relatedTransactionId: t.relatedTransactionId ? t.relatedTransactionId._id.toString() : undefined
+        relatedTransactionId: t.relatedTransactionId ? t.relatedTransactionId._id.toString() : undefined,
+        goalItem: t.goalItem ? {
+            _id: t.goalItem._id.toString(),
+            name: t.goalItem.name,
+            goal: t.goalItem.goalId ? {
+                _id: t.goalItem.goalId._id.toString(),
+                name: t.goalItem.goalId.name
+            } : undefined
+        } : undefined
     }));
 
     return {

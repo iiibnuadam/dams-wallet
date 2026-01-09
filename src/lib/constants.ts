@@ -33,3 +33,21 @@ export const getWalletIconComponent = (type: WalletType) => {
       return Wallet;
   }
 };
+
+export const SAFE_COLORS = [
+    "#ef4444", // Red 500
+    "#f97316", // Orange 500
+    "#f59e0b", // Amber 500
+    "#84cc16", // Lime 500
+    "#10b981", // Emerald 500
+    "#06b6d4", // Cyan 500
+    "#3b82f6", // Blue 500
+    "#6366f1", // Indigo 500
+    "#8b5cf6", // Violet 500
+    "#d946ef", // Fuchsia 500
+    "#db2777", // Pink 600
+    "#9f1239", // Rose 800 (Darker red/pink)
+    "#334155", // Slate 700 (Dark Gray)
+];
+
+export const PRESET_ICONS = ["🏠", "🚗", "🎓", "💍", "👶", "✈️", "🏥", "💻", "📱", "🛋️", "🔧", "🎉", "💰", "🏝️", "🚀", "❤️", "⭐", "🔥", "🎨", "⚽"];

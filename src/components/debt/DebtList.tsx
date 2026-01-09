@@ -11,6 +11,7 @@ import { format, isPast, isToday, addDays } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { AppLoader } from "@/components/ui/app-loader";
 
 export function DebtList() {
     const [debts, setDebts] = useState<any[]>([]);
@@ -159,7 +160,7 @@ export function DebtList() {
         );
     }
 
-    if (loading) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading records...</div>;
+    if (loading) return <AppLoader text="Loading records..." className="py-20" />;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">

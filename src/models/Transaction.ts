@@ -1,16 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { TransactionType, PaymentPhase } from "@/types/transaction";
 
-export enum TransactionType {
-  INCOME = "INCOME",
-  EXPENSE = "EXPENSE",
-  TRANSFER = "TRANSFER",
-}
-
-export enum PaymentPhase {
-  DP = "DP",
-  FULL = "FULL",
-  TERMINAL = "TERMINAL",
-}
+export { TransactionType, PaymentPhase }; // Re-export for backend backward compatibility if needed, or just remove if all updated.
 
 export interface ITransaction extends Document {
   date: Date;
@@ -22,6 +13,7 @@ export interface ITransaction extends Document {
   category?: mongoose.Types.ObjectId;
   project?: mongoose.Types.ObjectId;
   budgetItem?: mongoose.Types.ObjectId;
+  goalItem?: mongoose.Types.ObjectId;
   paymentPhase?: PaymentPhase;
   partnerOwed?: number;
   adminFee?: number;
@@ -46,6 +38,7 @@ const TransactionSchema: Schema = new Schema(
     // Project Fields
     project: { type: Schema.Types.ObjectId, ref: "Project" },
     budgetItem: { type: Schema.Types.ObjectId, ref: "BudgetItem" },
+    goalItem: { type: Schema.Types.ObjectId, ref: "GoalItem" },
     paymentPhase: { type: String, enum: Object.values(PaymentPhase) },
 
     // Split Fields
