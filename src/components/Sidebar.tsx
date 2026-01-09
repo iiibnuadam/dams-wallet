@@ -87,7 +87,7 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
               <span className={cn(
                   "text-foreground transition-all duration-300 overflow-hidden",
                   collapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100 ml-2"
-              )}>Dams</span>
+              )}>Dams Wallet</span>
             </div>
         </div>
 
