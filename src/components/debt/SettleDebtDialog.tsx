@@ -6,58 +6,46 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { settleDebtAction } from "@/actions/debt";
-import { getWalletsAction } from "@/actions/wallet"; // Accessing server action we will create/verify
+import { useSettleDebt } from "@/hooks/useDebts";
 
 interface SettleDebtDialogProps {
   debt: any;
   trigger?: React.ReactNode;
   onSettled?: () => void;
+  wallets: any[];
 }
 
-export function SettleDebtDialog({ debt, trigger, onSettled }: SettleDebtDialogProps) {
+export function SettleDebtDialog({ debt, trigger, onSettled, wallets }: SettleDebtDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [wallets, setWallets] = useState<any[]>([]);
   const [selectedWallet, setSelectedWallet] = useState("");
-  const [fetchingWallets, setFetchingWallets] = useState(false);
 
+  const { mutateAsync: settleDebt } = useSettleDebt();
+
+  // Reset or set default wallet when opening
   useEffect(() => {
-    if (open) {
-        setFetchingWallets(true);
-        // Assuming we need a way to fetch wallets. 
-        // If getWalletsAction doesn't exist, we might need to fetch them via an API route or pass them down.
-        // For now, I'll assume we can create/use a server action or fetch from API.
-        // Let's use a direct server action if possible, or fallback.
-        // CHECK: Does getWalletsAction exist? I will create it in a moment if not.
-        import("@/actions/wallet").then((mod) => {
-            if (mod.getWalletsAction) {
-                mod.getWalletsAction().then(data => {
-                    setWallets(data);
-                    setFetchingWallets(false);
-                    // Default to first wallet if available
-                    if (data.length > 0) setSelectedWallet(data[0]._id);
-                });
-            } else {
-                // Fallback attempt or fetch via API if we had one
-                setFetchingWallets(false);
-            }
-        }).catch(() => setFetchingWallets(false));
+    if (open && wallets.length > 0 && !selectedWallet) {
+         // Default to first capable wallet if possible, or just first one
+         setSelectedWallet(wallets[0]._id);
     }
-  }, [open]);
+  }, [open, wallets, selectedWallet]);
 
   const handleSettle = async () => {
     if (!selectedWallet) return;
     setLoading(true);
 
-    const res = await settleDebtAction(debt._id, selectedWallet);
-    
-    setLoading(false);
-    if (res.success) {
-      setOpen(false);
-      if (onSettled) onSettled();
-    } else {
-      alert(res.message || "Failed to settle debt");
+    try {
+        const res = await settleDebt({ id: debt._id, walletId: selectedWallet });
+        setLoading(false);
+        if (res.success) {
+          setOpen(false);
+          if (onSettled) onSettled();
+        } else {
+          alert(res.message || "Failed to settle debt");
+        }
+    } catch (e: any) {
+        setLoading(false);
+        alert(e.message || "Failed");
     }
   };
 
@@ -91,9 +79,9 @@ export function SettleDebtDialog({ debt, trigger, onSettled }: SettleDebtDialogP
 
             <div className="space-y-2">
                 <Label>Select Wallet {isLent ? "(Deposit to)" : "(Pay from)"}</Label>
-                <Select value={selectedWallet} onValueChange={setSelectedWallet} disabled={fetchingWallets}>
+                <Select value={selectedWallet} onValueChange={setSelectedWallet}>
                     <SelectTrigger>
-                        <SelectValue placeholder={fetchingWallets ? "Loading wallets..." : "Select a wallet"} />
+                        <SelectValue placeholder="Select a wallet" />
                     </SelectTrigger>
                     <SelectContent>
                         {wallets.map(w => {
@@ -107,7 +95,7 @@ export function SettleDebtDialog({ debt, trigger, onSettled }: SettleDebtDialogP
                                 </SelectItem>
                             );
                         })}
-                        {wallets.length === 0 && !fetchingWallets && (
+                        {wallets.length === 0 && (
                             <SelectItem value="none" disabled>No wallets found</SelectItem>
                         )}
                     </SelectContent>

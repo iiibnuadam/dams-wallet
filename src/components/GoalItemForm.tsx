@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { createGoalItemAction, updateGoalItemAction } from "@/actions/goal";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -33,6 +32,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useCreateGoalItem, useUpdateGoalItem } from "@/hooks/useGoals";
 
 const formSchema = z.object({
   groupName: z.string().min(1, "Group Name is required"),
@@ -54,6 +54,9 @@ export function GoalItemForm({ goalId, itemId, existingGroups = [], defaultValue
     const [open, setOpen] = useState(false);
     const [searchValue, setSearchValue] = useState("");
 
+    const { mutateAsync: createItem } = useCreateGoalItem();
+    const { mutateAsync: updateItem } = useUpdateGoalItem();
+
     const form = useForm({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -71,23 +74,25 @@ export function GoalItemForm({ goalId, itemId, existingGroups = [], defaultValue
         formData.append("name", values.name);
         formData.append("estimatedAmount", values.estimatedAmount.toString());
 
-        const result = itemId
-            ? await updateGoalItemAction(itemId, goalId, null, formData)
-            : await createGoalItemAction(null, formData);
-        
-        setLoading(false);
+        try {
+            const result = itemId
+                ? await updateItem({ id: itemId, goalId, formData })
+                : await createItem(formData);
+            
+            setLoading(false);
 
-        if (result.success) {
-            toast.success(result.message);
-            if (onSuccess) onSuccess();
-            form.reset();
-            router.refresh();
-        } else {
-            toast.error(result.message);
+            if (result.success) {
+                toast.success(result.message);
+                if (onSuccess) onSuccess();
+                form.reset();
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error: any) {
+            setLoading(false);
+            toast.error(error.message || "Something went wrong");
         }
     }
-
-
 
     return (
         <Form {...form}>

@@ -16,6 +16,7 @@ interface CategoryData {
 interface CategoryBreakdownProps {
   expenses: CategoryData[];
   incomes: CategoryData[];
+  periodLabel?: string;
 }
 
 
@@ -34,7 +35,7 @@ const COLORS = [
   '#14b8a6', // teal
 ];
 
-export function CategoryBreakdown({ expenses, incomes }: CategoryBreakdownProps) {
+export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBreakdownProps) {
   const [activeTab, setActiveTab] = useState("EXPENSE");
 
   const data = activeTab === "EXPENSE" ? expenses : incomes;
@@ -59,6 +60,7 @@ export function CategoryBreakdown({ expenses, incomes }: CategoryBreakdownProps)
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                  <CardTitle className="text-lg">{title}</CardTitle>
+                 {periodLabel && <CardDescription className="text-xs mt-1">{periodLabel}</CardDescription>}
             </div>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-[180px]">
                 <TabsList className="grid w-full grid-cols-2 h-8">

@@ -14,13 +14,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useState, useEffect } from "react";
-import { createGoalAction, updateGoalAction } from "@/actions/goal";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SAFE_COLORS, PRESET_ICONS } from "@/lib/constants";
-
-// ... imports remain the same
+import { useCreateGoal, useUpdateGoal } from "@/hooks/useGoals";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -39,6 +37,9 @@ interface GoalFormProps {
 export function GoalForm({ defaultValues, goalId, onSuccess }: GoalFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+
+    const { mutateAsync: createGoal } = useCreateGoal();
+    const { mutateAsync: updateGoal } = useUpdateGoal();
 
     const form = useForm({
         resolver: zodResolver(formSchema),
@@ -60,19 +61,25 @@ export function GoalForm({ defaultValues, goalId, onSuccess }: GoalFormProps) {
         formData.append("color", values.color || "");
         formData.append("icon", values.icon || "");
 
-        const result = goalId 
-            ? await updateGoalAction(goalId, null, formData)
-            : await createGoalAction(null, formData);
-        
-        setLoading(false);
-
-        if (result.success) {
-            toast.success(result.message);
-            if (onSuccess) onSuccess();
-            router.refresh();
-             if (!goalId) router.push("/goals");
-        } else {
-            toast.error(result.message);
+        try {
+            const result = goalId 
+                ? await updateGoal({ id: goalId, formData })
+                : await createGoal(formData);
+            
+            setLoading(false);
+            
+            if (result.success) {
+                toast.success(result.message);
+                if (onSuccess) onSuccess();
+                // We use router push as goals page might need full refresh or just navigation
+                if (!goalId) router.push("/goals");
+                else router.refresh(); 
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error: any) {
+            setLoading(false);
+            toast.error(error.message || "Something went wrong");
         }
     }
 
@@ -109,8 +116,6 @@ export function GoalForm({ defaultValues, goalId, onSuccess }: GoalFormProps) {
                         </FormItem>
                     )}
                 />
-
-                {/* Name and Target Date fields remain same... */}
 
                  <FormField
                     control={form.control}

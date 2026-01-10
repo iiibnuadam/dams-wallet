@@ -5,9 +5,8 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { GoalItemForm } from "./GoalItemForm";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { deleteGoalItemAction } from "@/actions/goal";
+import { useDeleteGoalItem } from "@/hooks/useGoals";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -87,23 +86,28 @@ interface DeleteGoalItemDialogProps {
 }
 
 export function DeleteGoalItemDialog({ goalId, itemId, itemName }: DeleteGoalItemDialogProps) {
-    const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const { mutateAsync: deleteItem } = useDeleteGoalItem();
     
     async function onDelete(e: React.MouseEvent) {
         e.preventDefault();
         setLoading(true);
-        const result = await deleteGoalItemAction(itemId, goalId);
         
-        if (result.success) {
-            toast.success(result.message);
-            setOpen(false);
-            router.refresh();
-        } else {
-            toast.error(result.message);
+        try {
+            const result = await deleteItem({ id: itemId, goalId });
+            
+            if (result.success) {
+                toast.success(result.message);
+                setOpen(false);
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error: any) {
+             toast.error(error.message || "Failed to delete");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
 
     return (

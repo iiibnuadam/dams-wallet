@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { TransactionDetailDialog } from "@/components/TransactionDetailDialog";
-import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, CalendarClock, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, CalendarClock, ArrowRight, Loader2, Trash2, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import { fetchTransactionPage } from "@/actions/transaction";
 import { getCategoryColor, getCategoryIcon } from "@/lib/category-utils";
+import { useTransactions, useDeleteTransaction } from "@/hooks/useTransactions";
+import { format } from "date-fns";
+import { Button } from "./ui/button";
+import { TransactionSkeleton } from "@/components/skeletons";
 
 // Interface for client prop (serialized)
 interface TransactionDTO {
@@ -22,19 +25,6 @@ interface TransactionDTO {
     isTransfer?: boolean;
     relatedTransaction?: { wallet?: { name: string; _id: string } };
     createdBy?: string;
-}
-
-interface PaginationMeta {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-    limit: number;
-}
-
-interface TransactionListProps {
-  transactions: TransactionDTO[];
-  pagination?: PaginationMeta;
-  contextParams?: Record<string, string | number>;
 }
 
 const formatCurrency = (amount: number) => {
@@ -58,53 +48,48 @@ const formatDateGroup = (dateStr: string) => {
   return date.toLocaleDateString("en-US", { weekday: 'long' });
 };
 
-export function TransactionList({ transactions: initialTransactions, pagination: initialPagination, contextParams }: TransactionListProps) {
+interface TransactionListProps {
+  transactions?: TransactionDTO[];
+  contextParams?: Record<string, any>;
+}
+
+export function TransactionList({ transactions: initialTransactions, contextParams = {} }: TransactionListProps = {}) {
   const searchParams = useSearchParams();
-  const [transactions, setTransactions] = useState<TransactionDTO[]>(initialTransactions);
-  const [pagination, setPagination] = useState<PaginationMeta | undefined>(initialPagination);
-  const [loading, setLoading] = useState(false);
   const [selectedTx, setSelectedTx] = useState<TransactionDTO | null>(null);
+  
+  // Extract params from URL and merge with context
+  const params: Record<string, any> = { ...contextParams };
+  searchParams.forEach((value, key) => {
+      params[key] = value;
+  });
+
+  const {
+      data,
+      fetchNextPage,
+      hasNextPage,
+      isFetchingNextPage,
+      isLoading,
+      isError
+  } = useTransactions(params, { enabled: !initialTransactions });
+
+  const { mutate: deleteTransaction, mutateAsync: deleteTransactionAsync } = useDeleteTransaction();
 
   const { ref, inView } = useIntersectionObserver();
 
-  // Reset state when filters change (detected by initialTransactions changing usually, but better to sync)
+  // If initialTransactions is provided, infinite scroll is disabled
   useEffect(() => {
-    setTransactions(initialTransactions);
-    setPagination(initialPagination);
-  }, [initialTransactions, initialPagination]);
-
-  const loadMore = async () => {
-    if (loading || !pagination || pagination.currentPage >= pagination.totalPages) return;
-
-    setLoading(true);
-    const nextPage = pagination.currentPage + 1;
-    
-    // Convert search params to object
-    const params: any = { page: nextPage, limit: 15, ...contextParams };
-    searchParams.forEach((value, key) => { 
-        if (key !== 'page') {
-             params[key] = value; 
-        }
-    });
-
-    const res = await fetchTransactionPage(params);
-    
-    if (res.success && res.data) {
-        setTransactions(prev => {
-            const newTxns = res.data.filter((newTx: TransactionDTO) => !prev.some((p) => p._id === newTx._id));
-            return [...prev, ...newTxns];
-        });
-        if (res.pagination) setPagination(res.pagination);
+    if (!initialTransactions && inView && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
     }
-    setLoading(false);
-  };
+  }, [inView, hasNextPage, fetchNextPage, initialTransactions, isFetchingNextPage]);
 
+  // Flatten pages if fetching, otherwise use provided transactions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transactions = initialTransactions || data?.pages.flatMap((page: any) => page.transactions) || [];
 
-  useEffect(() => {
-    if (inView) {
-        loadMore();
-    }
-  }, [inView]);
+  if (isLoading && !initialTransactions) {
+      return <TransactionSkeleton />;
+  }
 
   if (transactions.length === 0) {
       return (
@@ -116,7 +101,7 @@ export function TransactionList({ transactions: initialTransactions, pagination:
   }
 
   // Group transactions by date
-  const groupedTransactions = transactions.reduce((groups, txn) => {
+  const groupedTransactions = transactions.reduce((groups: Record<string, TransactionDTO[]>, txn: TransactionDTO) => {
     const date = txn.date.split('T')[0];
     if (!groups[date]) groups[date] = [];
     groups[date].push(txn);
@@ -126,12 +111,16 @@ export function TransactionList({ transactions: initialTransactions, pagination:
   // Sort dates descending
   const sortedDates = Object.keys(groupedTransactions).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
+
+
   return (
-    <div className="space-y-6 w-full max-w-full overflow-hidden">
+    <div className="space-y-6 w-full max-w-full">
       <TransactionDetailDialog 
         open={!!selectedTx} 
         onOpenChange={(open) => !open && setSelectedTx(null)} 
-        transaction={selectedTx} 
+        transaction={selectedTx}
+        customDeleteAction={deleteTransactionAsync}
+        onDeleteSuccess={() => setSelectedTx(null)}
       />
 
       {sortedDates.map((date, index) => (
@@ -146,7 +135,7 @@ export function TransactionList({ transactions: initialTransactions, pagination:
           </div>
 
           <div className="space-y-2">
-            {groupedTransactions[date].map((txn) => {
+            {groupedTransactions[date].map((txn: TransactionDTO) => {
                const CategoryIcon = getCategoryIcon(txn.category?.name);
                const categoryColorClass = getCategoryColor(txn.category?.name);
                
@@ -220,10 +209,10 @@ export function TransactionList({ transactions: initialTransactions, pagination:
         </div>
       ))}
       
-      {/* Infinite Scroll Trigger / Loader */}
-      {pagination && pagination.currentPage < pagination.totalPages && (
+      {/* Infinite Scroll Trigger / Loader - Only show if we are controlling data fetching */}
+      {!initialTransactions && hasNextPage && (
           <div ref={ref} className="flex justify-center py-8">
-              {loading ? (
+              {isFetchingNextPage ? (
                   <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
               ) : (
                   <span className="text-xs text-muted-foreground">Scroll to load more...</span>

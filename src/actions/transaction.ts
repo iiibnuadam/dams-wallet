@@ -192,22 +192,4 @@ export async function deleteTransaction(id: string) {
     }
 }
 
-export async function fetchTransactionPage(params: any) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return { success: false, message: "Unauthorized", data: [], pagination: null };
-    }
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const currentUser = (session.user as any).id;
-    const safeParams = { ...params, currentUser };
 
-    try {
-        const { default: getTransactions } = await import("@/services/transaction.service").then(m => ({ default: m.getTransactions }));
-        const result = await getTransactions(safeParams);
-        return { success: true, data: result.transactions, pagination: result.pagination };
-    } catch (e) {
-        console.error("Fetch Transactions Error:", e);
-        return { success: false, message: "Failed to fetch transactions", data: [], pagination: null };
-    }
-}

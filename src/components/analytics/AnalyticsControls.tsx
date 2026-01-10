@@ -68,16 +68,34 @@ export function AnalyticsControls({
   
   useEffect(() => {
       if (!searchParams.get("mode") && !searchParams.get("preset") && !searchParams.get("month")) {
-          // Force 3M
+          // Force Default Preset
           const params = new URLSearchParams(searchParams.toString());
           params.set("mode", "PRESET");
-          params.set("preset", "3M");
+          params.set("preset", defaultPreset);
           
           const now = new Date();
-          const start = subMonths(now, 3);
-          
-          params.set("startDate", start.toISOString());
-          params.set("endDate", now.toISOString());
+          let start = now;
+          let end = now;
+
+          if (defaultPreset === "3M") start = subMonths(now, 3);
+          else if (defaultPreset === "1M") start = subMonths(now, 1);
+          else if (defaultPreset === "7D") start = subDays(now, 7);
+          else if (defaultPreset === "YTD") start = startOfYear(now);
+          else if (defaultPreset === "1Y") start = subDays(now, 365);
+          else if (defaultPreset === "MTD") start = startOfMonth(now);
+          else if (defaultPreset === "ALL") {
+              // ALL logic handled by clearing dates usually, but let's be consistent with button
+              params.set("mode", "ALL");
+          }
+
+          if (defaultPreset !== "ALL") {
+            params.set("startDate", start.toISOString());
+            params.set("endDate", end.toISOString());
+          } else {
+             params.delete("startDate");
+             params.delete("endDate");
+             params.delete("preset"); // Mode ALL doesn't usually carry preset param in url based on button logic
+          }
           
           router.replace(`?${params.toString()}`, { scroll: false });
       }

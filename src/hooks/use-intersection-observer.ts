@@ -1,22 +1,23 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export function useIntersectionObserver(options: IntersectionObserverInit = {}) {
   const [isIntersecting, setIntersecting] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+  const ref = useCallback((node: Element | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
 
-    const observer = new IntersectionObserver(([entry]) => {
-      setIntersecting(entry.isIntersecting);
-    }, options);
+    if (node) {
+      const observer = new IntersectionObserver(([entry]) => {
+        setIntersecting(entry.isIntersecting);
+      }, options);
 
-    observer.observe(element);
-
-    return () => {
-      observer.unobserve(element);
-    };
+      observer.observe(node);
+      observerRef.current = observer;
+    }
   }, [options.threshold, options.root, options.rootMargin]);
 
   return { ref, inView: isIntersecting };

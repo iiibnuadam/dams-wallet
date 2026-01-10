@@ -88,6 +88,10 @@ export async function getWallets(owner?: string) {
       ...wallet,
       _id: wallet._id.toString(),
       owner: wallet.owner?.toString(),
+      liabilityDetails: wallet.liabilityDetails ? {
+          ...wallet.liabilityDetails,
+          startDate: wallet.liabilityDetails.startDate ? new Date(wallet.liabilityDetails.startDate).toISOString() : undefined
+      } : undefined
   }));
 }
 
@@ -158,6 +162,10 @@ export async function getWalletById(id: string) {
           ...wallet,
           _id: wallet._id.toString(),
           owner: wallet.owner?.toString(),
+          liabilityDetails: wallet.liabilityDetails ? {
+            ...wallet.liabilityDetails,
+            startDate: wallet.liabilityDetails.startDate ? new Date(wallet.liabilityDetails.startDate).toISOString() : undefined
+        } : undefined
       };
 }
 
@@ -267,6 +275,7 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
   const totalTransactions = await Transaction.countDocuments(baseQuery);
   const totalPages = Math.ceil(totalTransactions / limit);
 
+  // 4. Fetch Paginated Transactions for List
   const transactions = await Transaction.find(baseQuery)
       .sort({ date: -1, createdAt: -1 })
       .skip(skip)
@@ -279,83 +288,94 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
       .populate("createdBy", "username name")
       .lean();
 
-  // 5. Process Data
-  let income = 0;
-  let expense = 0;
-  const expenseMap = new Map<string, number>();
-  const incomeMap = new Map<string, number>();
-  const dailyMap = new Map<string, { income: number, expense: number }>();
-
-  const addToMap = (map: Map<string, number>, key: string, amount: number) => {
-      map.set(key, (map.get(key) || 0) + amount);
-  };
-
-  for (const txn of transactions) {
-      const txnAmount = txn.amount;
-      
-      let type: 'INCOME' | 'EXPENSE' | 'NONE' = 'NONE';
-      let catName = "Uncategorized";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const catObj = (txn.category as any);
-      if (catObj) catName = catObj.name;
-      
-      // Override category name for transfers for better grouping if uncategorized
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((txn as any).isTransfer) {
-          if (txn.type === TransactionType.EXPENSE) catName = "Transfer Out";
-          else catName = "Transfer In";
-      }
-
-      if (txn.type === TransactionType.INCOME) {
-          type = 'INCOME';
-      } else if (txn.type === TransactionType.EXPENSE) {
-          type = 'EXPENSE';
-      }
-
-      // Aggregations
-      if (type === 'INCOME') {
-          income += txnAmount;
-          const catId = catObj?._id?.toString() || catName; 
-          addToMap(incomeMap, catId, txnAmount);
-          
-          const dayKey = format(txn.date, "yyyy-MM-dd");
-          if (!dailyMap.has(dayKey)) dailyMap.set(dayKey, { income: 0, expense: 0 });
-          dailyMap.get(dayKey)!.income += txnAmount;
-
-      } else if (type === 'EXPENSE') {
-          expense += txnAmount;
-          const catId = catObj?._id?.toString() || catName;
-          addToMap(expenseMap, catId, txnAmount);
-
-          const dayKey = format(txn.date, "yyyy-MM-dd");
-          if (!dailyMap.has(dayKey)) dailyMap.set(dayKey, { income: 0, expense: 0 });
-          dailyMap.get(dayKey)!.expense += txnAmount;
-      }
+  // 5. Aggregation for Stats (Summary, Category, Daily)
+  // We need to match the same baseQuery.
+  // Note: baseQuery uses Mongoose syntax. For aggregation, we might need to cast ObjectIds if they are strings in baseQuery (but they seem to be strings/dates which is fine if schema matches).
+  // However, walletId is a string, schema uses ObjectId. Mongoose find() casts auto, Aggregation does NOT.
+  // baseQuery.wallet is `walletId` string. We need to cast it.
+  
+  const mongoose = (await import("mongoose")).default;
+  const aggMatch: any = { ...baseQuery };
+  if (aggMatch.wallet) aggMatch.wallet = new mongoose.Types.ObjectId(aggMatch.wallet);
+  if (aggMatch.category) aggMatch.category = new mongoose.Types.ObjectId(aggMatch.category);
+  // Date is Date object, fine.
+  // TransactionType "EXPENSE"/"INCOME" string, fine.
+  // goalItem $exists or $in checks. $in needs ObjectId casting if array of strings.
+  if (aggMatch.goalItem && aggMatch.goalItem.$in) {
+      aggMatch.goalItem.$in = aggMatch.goalItem.$in.map((id: any) => new mongoose.Types.ObjectId(id));
   }
-
-  // 6. Format Category Data
-  const resolveCategoryStats = async (map: Map<string, number>) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stats: any[] = [];
-      const keys = Array.from(map.keys());
-      const dbIds = keys.filter(k => k.match(/^[0-9a-fA-F]{24}$/));
-      
-      let categories: any[] = [];
-      if (dbIds.length > 0) {
-          const { default: CategoryModel } = await import("../models/Category");
-          categories = await CategoryModel.find({ _id: { $in: dbIds } }).lean();
+  
+  const statsAggregation = await Transaction.aggregate([
+      { $match: aggMatch },
+      {
+          $facet: {
+              "summary": [
+                  {
+                      $group: {
+                          _id: null,
+                          totalIncome: { 
+                              $sum: { $cond: [{ $eq: ["$type", "INCOME"] }, "$amount", 0] } 
+                          },
+                          totalExpense: { 
+                              $sum: { $cond: [{ $eq: ["$type", "EXPENSE"] }, "$amount", 0] } 
+                          }
+                      }
+                  }
+              ],
+              "byCategory": [
+                 {
+                     $group: {
+                         _id: { 
+                             category: "$category", 
+                             type: "$type" 
+                         }, 
+                         total: { $sum: "$amount" }
+                     }
+                 },
+                 {
+                    $lookup: {
+                        from: "categories",
+                        localField: "_id.category",
+                        foreignField: "_id",
+                        as: "categoryDoc"
+                    }
+                 },
+                 {
+                     $project: {
+                         type: "$_id.type",
+                         name: { $ifNull: [ { $arrayElemAt: ["$categoryDoc.name", 0] }, "Uncategorized" ] },
+                         value: "$total"
+                     }
+                 }
+              ],
+              "daily": [
+                  {
+                      $group: {
+                          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                          income: { $sum: { $cond: [{ $eq: ["$type", "INCOME"] }, "$amount", 0] } },
+                          expense: { $sum: { $cond: [{ $eq: ["$type", "EXPENSE"] }, "$amount", 0] } }
+                      }
+                  }
+              ]
+          }
       }
+  ]);
 
-      map.forEach((val, key) => {
-          const cat = categories.find(c => c._id.toString() === key);
-          const name = cat ? cat.name : key; 
-          stats.push({ name, value: val });
-      });
-      return stats.sort((a, b) => b.value - a.value);
-  };
+  const stats = statsAggregation[0];
+  const summaryResult = stats.summary[0] || { totalIncome: 0, totalExpense: 0 };
+  const income = summaryResult.totalIncome;
+  const expense = summaryResult.totalExpense;
 
-  const expenseByCategory = await resolveCategoryStats(expenseMap);
-  const incomeByCategory = await resolveCategoryStats(incomeMap);
+  // Process Category Props
+  const expenseByCategory = stats.byCategory
+      .filter((i: any) => i.type === "EXPENSE")
+      .map((i: any) => ({ name: i.name, value: i.value }))
+      .sort((a: any, b: any) => b.value - a.value);
+
+  const incomeByCategory = stats.byCategory
+      .filter((i: any) => i.type === "INCOME")
+      .map((i: any) => ({ name: i.name, value: i.value }))
+      .sort((a: any, b: any) => b.value - a.value);
 
   // 7. Days Diff
   const daysDiff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
@@ -364,7 +384,11 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
   const { eachDayOfInterval } = await import("date-fns");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dailyTrend: any[] = [];
-  
+  const dailyMap = new Map<string, { income: number, expense: number }>();
+  stats.daily.forEach((d: any) => {
+      dailyMap.set(d._id, { income: d.income, expense: d.expense });
+  });
+
   if (daysDiff <= 370) {
       const interval = eachDayOfInterval({ start, end });
       interval.forEach(date => {
@@ -379,10 +403,15 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
       });
   }
 
-  // 9. Monthly Trend
+  // 9. Monthly Trend (Keep explicit legacy method or refactor? Keeping legacy for safety as it uses wider date range)
   const trendStart = subMonths(startOfMonth(new Date()), 5); 
   const trendEnd = endOfMonth(new Date());
   
+  // This aggregation could be optimized too, but let's stick to the immediate fix which is the main summary/charts respecting the filter.
+  // The monthly trend is "Last 6 Months" typically for context, usually independent of filter, OR it should respect filter if filter > 6 months? 
+  // Usually 'Monthly Trend' card is distinct. 
+  // Let's keep existing logic for Monthly Trend as it has its own date range hardcoded (Last 6 months).
+
   const trendTransactions = await Transaction.find({
       isDeleted: false,
       date: { $gte: trendStart, $lte: trendEnd },

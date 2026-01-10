@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,11 +23,11 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
-import { createTransaction } from "@/actions/transaction";
 import { getCategories } from "@/actions/category";
 import { TransactionType, PaymentPhase } from "@/types/transaction";
 import { toast } from "sonner";
 import { Banknote } from "lucide-react";
+import { useCreateTransaction } from "@/hooks/useTransactions";
 
 const formSchema = z.object({
   amount: z.coerce.number().min(1, "Amount is required"),
@@ -48,6 +48,9 @@ interface PayGoalItemDialogProps {
 export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalItemDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    
+    // Use mutation hook
+    const { mutateAsync: createTx } = useCreateTransaction();
 
     const form = useForm({
         resolver: zodResolver(formSchema),
@@ -55,7 +58,7 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             amount: 0,
             wallet: wallets.length > 0 ? wallets[0]._id : "",
             date: new Date().toISOString().split('T')[0],
-            paymentPhase: PaymentPhase.DP, // Default to DP, or maybe make it empty to force choice?
+            paymentPhase: PaymentPhase.DP, 
             note: "",
         },
     });
@@ -69,8 +72,6 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             let targetCategory = categories.find((c: any) => c.name === goalName && c.type === TransactionType.EXPENSE);
             
             if (!targetCategory) {
-                // Fallback to general Financial Goals or create? 
-                // Let's fallback to search for "Financial Goal" or similar generic
                 targetCategory = categories.find((c: any) => 
                     (c.name.toLowerCase().includes("goal") || c.name.toLowerCase().includes("tabungan")) 
                     && c.type === TransactionType.EXPENSE
@@ -94,7 +95,7 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             formData.append("goalItem", item._id);
             formData.append("paymentPhase", values.paymentPhase);
 
-            const result = await createTransaction(null, formData);
+            const result = await createTx(formData);
 
             if (result.success) {
                 toast.success("Payment recorded successfully!");
@@ -103,8 +104,8 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             } else {
                 toast.error(result.message);
             }
-        } catch (error) {
-            toast.error("Something went wrong");
+        } catch (error: any) {
+            toast.error(error.message || "Something went wrong");
             console.error(error);
         } finally {
             setLoading(false);

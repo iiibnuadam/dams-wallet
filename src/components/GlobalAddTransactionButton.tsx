@@ -5,11 +5,12 @@ import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-interface GlobalAddTransactionButtonProps {
-    wallets: any[];
-}
+import { useWallets } from "@/hooks/useWallets";
 
-export function GlobalAddTransactionButton({ wallets }: GlobalAddTransactionButtonProps) {
+interface GlobalAddTransactionButtonProps {}
+
+export function GlobalAddTransactionButton() {
+    const { data: wallets = [] } = useWallets("ALL");
     const pathname = usePathname();
     const isAuthPage = pathname?.startsWith("/auth");
 

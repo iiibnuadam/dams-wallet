@@ -16,11 +16,12 @@ import { Link as LinkIcon, Menu, Moon, Sun, X } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { useTheme } from "next-themes";
 
-interface BottomNavProps {
-    wallets: any[];
-}
+import { useWallets } from "@/hooks/useWallets";
 
-export function BottomNav({ wallets }: BottomNavProps) {
+interface BottomNavProps {}
+
+export function BottomNav() {
+    const { data: wallets = [] } = useWallets("ALL");
     const { data: session } = useSession();
     const pathname = usePathname();
     const [profileOpen, setProfileOpen] = useState(false);

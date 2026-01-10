@@ -5,13 +5,14 @@ import { cn } from "@/lib/utils";
 import { BarChart3, List } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-interface WalletViewToggleProps {
-  currentView: "transactions" | "analytics";
-}
+// interface WalletViewToggleProps {
+//   currentView: "transactions" | "analytics";
+// }
 
-export function WalletViewToggle({ currentView }: WalletViewToggleProps) {
+export function WalletViewToggle() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentView = searchParams.get("view") || "transactions";
 
   const handleToggle = (view: "transactions" | "analytics") => {
     const params = new URLSearchParams(searchParams.toString());

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RoutineListSkeleton } from "@/components/skeletons";
 import { getRoutinesAction } from "@/actions/routine"; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
         .filter(r => r.type === "INCOME")
         .reduce((sum, r) => sum + r.amount, 0);
 
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-muted-foreground" /></div>;
+    if (loading) return <RoutineListSkeleton />;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">

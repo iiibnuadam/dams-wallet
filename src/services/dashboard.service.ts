@@ -1,10 +1,10 @@
 import Transaction, { TransactionType } from "@/models/Transaction";
 import Wallet from "@/models/Wallet";
 import dbConnect from "@/lib/db";
-import { startOfMonth, endOfMonth, subMonths, format, getDate, startOfDay, endOfDay, startOfWeek, endOfWeek, parse, startOfYear, endOfYear, isSameMonth } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, startOfWeek, endOfWeek, parse, startOfYear, endOfYear, isSameMonth } from "date-fns";
 import "@/models/GoalItem"; // Register GoalItem schema
 import "@/models/Goal"; // Register Goal schema
-import { WalletOwner } from "@/types/wallet";
+import mongoose from "mongoose";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getDashboardData(owner?: string, searchParams?: any) {
@@ -17,15 +17,14 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
       start = startOfDay(new Date(searchParams.startDate));
       end = endOfDay(new Date(searchParams.endDate));
   } else if (searchParams?.mode === "WEEK" && searchParams.week) {
-      // Format: "2024-W05"
       const date = parse(searchParams.week, "RRRR-'W'II", new Date(), { weekStartsOn: 1 });
       start = startOfWeek(date, { weekStartsOn: 1 });
       end = endOfWeek(date, { weekStartsOn: 1 });
   } else if (searchParams?.mode === "MONTH" && searchParams.month) {
       const date = new Date(searchParams.month);
-      start = startOfDay(startOfMonth(date)); // Ensure full day coverage
+      start = startOfDay(startOfMonth(date)); 
       if (isSameMonth(date, new Date())) {
-          end = new Date(); // MTD for current month
+          end = new Date(); 
       } else {
           end = endOfDay(endOfMonth(date));
       }
@@ -34,237 +33,274 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
       start = startOfYear(date);
       end = endOfYear(date);
   } else if (searchParams?.mode === "ALL") {
-      // Find first transaction date
       const firstTxn = await Transaction.findOne({ isDeleted: false }).sort({ date: 1 }).select("date").lean();
       start = firstTxn ? startOfMonth(firstTxn.date) : startOfMonth(new Date());
-      end = new Date(); // Now
+      end = new Date(); 
   } else {
-      // Default: Last 3 Months
+      // Default: Month to Date (MTD)
       const now = new Date();
-      start = startOfMonth(subMonths(now, 3)); 
+      start = startOfMonth(now); 
       end = now; 
   }
   
-  const now = new Date(); // Keep 'now' for trends relative to current time if needed, or maybe trends should respect range?
-  // User asked for report: usually report respects the filter.
-  // Trends (daily/monthly) should probably respect the filtered range if reasonable.
-
+  const now = new Date(); 
 
   // 1. Identify "My Wallets" if owner is specified
-  let myWalletIds: string[] = [];
-  let ownerId = owner; // Default to incoming (might be ID if updated elsewhere, but currently username)
+  let myWalletIds: mongoose.Types.ObjectId[] = [];
+  let ownerId = owner; 
 
   if (owner && owner !== "ALL") {
-      // Resolve owner username to ID
       const { default: User } = await import("@/models/User");
-      // Use regex for case-insensitive matching
       const user = await User.findOne({ username: { $regex: new RegExp(`^${owner}$`, "i") } }).select("_id");
       
       if (user) {
           ownerId = user._id.toString();
-          const wallets = await Wallet.find({ owner: ownerId }).select("_id");
-          myWalletIds = wallets.map(w => w._id.toString());
+          // Fetch full wallets for response and IDs for filtering
+          const walletDocs = await Wallet.find({ owner: ownerId }).lean();
+          myWalletIds = walletDocs.map(w => w._id);
+          // @ts-ignore
+          searchParams.wallets = walletDocs; // Store for return
       }
   } else if (!owner || owner === "ALL") {
-       // Default to ADAM for debts if ALL? Or show all debts? 
-       // Logic at line 261 was: owner || "ADAM". 
-       // So if ALL, it used "ADAM".
-       // Let's resolve "ADAM" ID.
        const { default: User } = await import("@/models/User");
-       // Use regex for case-insensitive matching for default user too
        const defaultUser = await User.findOne({ username: { $regex: new RegExp("^ADAM$", "i") } }).select("_id");
        if (defaultUser) ownerId = defaultUser._id.toString();
+        
+       // Fetch all wallets for ALL view
+       const walletDocs = await Wallet.find({}).lean();
+       // @ts-ignore
+       searchParams.wallets = walletDocs; 
   }
 
-  const buildMatchQuery = (dateQuery: any) => {
-    const query: any = {
-        isDeleted: false,
-    };
-
-    if (dateQuery && Object.keys(dateQuery).length > 0) {
-        query.date = dateQuery;
-    }
-
-    if (myWalletIds.length > 0) {
-        query.$or = [
-            { wallet: { $in: myWalletIds } },
-            { targetWallet: { $in: myWalletIds } }
-        ];
-    }
-    return query;
+  // --- AGGREGATION PIPELINE HELPER ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchStage: any = {
+      isDeleted: false,
+      date: { $gte: start, $lte: end }
   };
 
-  // --- CURRENT MONTH DATA ---
-  const currentMonthQuery = buildMatchQuery({ $gte: start, $lte: end });
-  const transactions = await Transaction.find(currentMonthQuery)
-    .populate({
-        path: "relatedTransactionId",
-        populate: { path: "wallet" }
-    })
-    .lean();
+  if (myWalletIds.length > 0) {
+      matchStage.$or = [
+          { wallet: { $in: myWalletIds } },
+          { targetWallet: { $in: myWalletIds } }
+      ];
 
-  let income = 0;
-  let expense = 0;
-  const expenseCategoryMap = new Map<string, number>();
-  const incomeCategoryMap = new Map<string, number>();
-  const dailyMap = new Map<string, number>(); 
+  }
 
-  for (const txn of transactions) {
-      const walletId = txn.wallet.toString();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const targetWalletId = (txn as any).targetWallet?.toString();
-      const dayKey = format(txn.date, "yyyy-MM-dd");
-      
-      const isMySource = myWalletIds.length === 0 || myWalletIds.includes(walletId);
-      const isMyTarget = targetWalletId && (myWalletIds.length === 0 || myWalletIds.includes(targetWalletId));
+  const isGlobalView = myWalletIds.length === 0;
 
-      let txnExpense = 0;
-
-      if (myWalletIds.length > 0) {
-          if (txn.type === TransactionType.INCOME) {
-              if (isMySource) {
-                  income += txn.amount;
-                  const catId = txn.category?.toString() || "Uncategorized";
-                  incomeCategoryMap.set(catId, (incomeCategoryMap.get(catId) || 0) + txn.amount);
-              }
-          } else if (txn.type === TransactionType.EXPENSE) {
-             if (isMySource) {
-                 txnExpense = txn.amount;
-                 expense += txn.amount;
-                 const catId = txn.category?.toString() || "Uncategorized";
-                 expenseCategoryMap.set(catId, (expenseCategoryMap.get(catId) || 0) + txn.amount);
-             }
-          } else if (txn.type === TransactionType.TRANSFER) {
-              if (isMySource && !isMyTarget) {
-                  txnExpense = txn.amount;
-                  expense += txn.amount;
-                  const catId = txn.category?.toString() || "Transfer Out"; 
-                  expenseCategoryMap.set(catId, (expenseCategoryMap.get(catId) || 0) + txn.amount);
-              } else if (!isMySource && isMyTarget) {
-                  income += txn.amount;
-                  const catId = txn.category?.toString() || "Transfer In"; 
-                  incomeCategoryMap.set(catId, (incomeCategoryMap.get(catId) || 0) + txn.amount);
+  // We need more detailed breakdown, so let's use Facets
+  // pipeline for category breakdown
+  const categoryPipeline = [
+        { $match: matchStage },
+        {
+          $project: {
+              amount: 1,
+              type: 1,
+              category: 1,
+              date: 1,
+              wallet: 1,
+              targetWallet: 1,
+              isMySource: { 
+                  $cond: { 
+                      if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } 
+                  } 
+              },
+              isMyTarget: {
+                  $cond: {
+                      if: { $literal: isGlobalView }, then: { $gt: ["$targetWallet", null] }, else: { $in: ["$targetWallet", myWalletIds] }
+                  }
               }
           }
-      } else {
-          // Global View
-          if (txn.type === TransactionType.INCOME) {
-              income += txn.amount;
-              const catId = txn.category?.toString() || "Uncategorized";
-              incomeCategoryMap.set(catId, (incomeCategoryMap.get(catId) || 0) + txn.amount);
-          }
-          if (txn.type === TransactionType.EXPENSE) {
-              txnExpense = txn.amount;
-              expense += txn.amount;
-              const catId = txn.category?.toString() || "Uncategorized";
-              expenseCategoryMap.set(catId, (expenseCategoryMap.get(catId) || 0) + txn.amount);
+      },
+      {
+          $facet: {
+              summary: [
+                  {
+                      $group: {
+                          _id: null,
+                          income: {
+                              $sum: {
+                                  $cond: [
+                                      { $or: [
+                                          { $and: [{ $eq: ["$type", "INCOME"] }, { $eq: ["$isMySource", true] }] },
+                                          { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", false] }, { $eq: ["$isMyTarget", true] }] }
+                                      ]},
+                                      "$amount", 0
+                                  ]
+                              }
+                          },
+                          expense: {
+                              $sum: {
+                                  $cond: [
+                                      { $or: [
+                                          { $and: [{ $eq: ["$type", "EXPENSE"] }, { $eq: ["$isMySource", true] }] },
+                                          { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", true] }, { $eq: ["$isMyTarget", false] }] }
+                                      ]},
+                                      "$amount", 0
+                                  ]
+                              }
+                          }
+                      }
+                  }
+              ],
+              incomeByCat: [
+                  { $match: { $or: [
+                      { type: "INCOME", $expr: { 
+                          $cond: { if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } } 
+                      }},
+                      { type: "TRANSFER", $expr: { 
+                          $cond: { if: { $literal: isGlobalView }, then: false, else: { $and: [
+                              { $not: { $in: ["$wallet", myWalletIds] } },
+                              { $in: ["$targetWallet", myWalletIds] }
+                          ]}}}
+                      }
+                  ]}},
+                  { $group: { 
+                      _id: { $ifNull: ["$category", "Uncategorized"] }, 
+                      value: { $sum: "$amount" },
+                      isTransfer: { $first: { $eq: ["$type", "TRANSFER"] } } // Tag transfers
+                  }},
+                  { $lookup: { from: "categories", localField: "_id", foreignField: "_id", as: "catDetails" } },
+                  { $project: { 
+                      _id: 0,
+                      name: { $ifNull: [{ $arrayElemAt: ["$catDetails.name", 0] }, { $cond: ["$isTransfer", "Transfer In", "Uncategorized"] }] }, 
+                      value: 1 
+                  }},
+                  { $sort: { value: -1 } }
+              ],
+              expenseByCat: [
+                  { $match: { $or: [
+                      { type: "EXPENSE", $expr: { 
+                          $cond: { if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } } 
+                      }},
+                      { type: "TRANSFER", $expr: { 
+                          $cond: { if: { $literal: isGlobalView }, then: false, else: { $and: [
+                              { $in: ["$wallet", myWalletIds] },
+                              { $not: { $in: ["$targetWallet", myWalletIds] } }
+                          ]}}}
+                      }
+                  ]}},
+                   { $group: { 
+                      _id: { $ifNull: ["$category", "Uncategorized"] }, 
+                      value: { $sum: "$amount" },
+                      isTransfer: { $first: { $eq: ["$type", "TRANSFER"] } }
+                  }},
+                  { $lookup: { from: "categories", localField: "_id", foreignField: "_id", as: "catDetails" } },
+                  { $project: { 
+                      _id: 0,
+                      name: { $ifNull: [{ $arrayElemAt: ["$catDetails.name", 0] }, { $cond: ["$isTransfer", "Transfer Out", "Uncategorized"] }] }, 
+                      value: 1 
+                  }},
+                  { $sort: { value: -1 } }
+              ],
+              daily: [
+                 { $project: {
+                      dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                      amount: 1,
+                      type: 1,
+                      isMySource: { $cond: { if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } } },
+                      isMyTarget: { $cond: { if: { $literal: isGlobalView }, then: { $gt: ["$targetWallet", null] }, else: { $in: ["$targetWallet", myWalletIds] } } }
+                 }},
+                 { $group: {
+                      _id: "$dateStr",
+                      expense: {
+                          $sum: {
+                              $cond: [
+                                  { $or: [
+                                      { $and: [{ $eq: ["$type", "EXPENSE"] }, { $eq: ["$isMySource", true] }] },
+                                      { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", true] }, { $eq: ["$isMyTarget", false] }] }
+                                  ]},
+                                  "$amount", 0
+                              ]
+                          }
+                      }
+                 }},
+                 { $sort: { _id: 1 } }
+              ]
           }
       }
+  ];
 
-      if (txnExpense > 0) {
-          dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + txnExpense);
-      }
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const [result] = await Transaction.aggregate(categoryPipeline as any);
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  
+  const income = result.summary[0]?.income || 0;
+  const expense = result.summary[0]?.expense || 0;
+  const incomeByCategory = result.incomeByCat;
+  const expenseByCategory = result.expenseByCat;
+  
+  // Format Daily Trend
+  // Fill in gaps
+  const dailyMap = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result.daily.forEach((d: any) => dailyMap.set(d._id, d.expense));
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dailyTrend: any[] = [];
+  const daysDiff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  if (daysDiff <= 370) {
+      const { eachDayOfInterval } = await import("date-fns");
+      const interval = eachDayOfInterval({ start, end });
+      interval.forEach(date => {
+          const key = format(date, "yyyy-MM-dd");
+          const expenseVal = dailyMap.get(key) || 0;
+          dailyTrend.push({ 
+              date: key, 
+              label: format(date, "d MMM"),
+              expense: expenseVal
+          });
+      });
   }
 
   // --- HISTORICAL TREND (Last 6 Months) ---
   const sixMonthsAgo = subMonths(start, 5);
-  const trendQuery = buildMatchQuery({ $gte: sixMonthsAgo, $lte: end });
-  const trendTransactions = await Transaction.find(trendQuery).lean();
+  // Separate aggregation for trend to avoid complexity in single pipeline
+  // Or just execute another pipeline for speed
   
+  const trendPipeline = [
+       { $match: { 
+           isDeleted: false, 
+           date: { $gte: sixMonthsAgo, $lte: end },
+           ...(myWalletIds.length > 0 ? { $or: [{ wallet: { $in: myWalletIds } }, { targetWallet: { $in: myWalletIds } }] } : {})
+       }},
+       { $project: {
+          month: { $dateToString: { format: "%Y-%m", date: "$date" } },
+          amount: 1, type: 1, 
+          isMySource: { $cond: { if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } } },
+          isMyTarget: { $cond: { if: { $literal: isGlobalView }, then: { $gt: ["$targetWallet", null] }, else: { $in: ["$targetWallet", myWalletIds] } } }
+       }},
+       { $group: {
+           _id: "$month",
+           income: { $sum: { $cond: [ { $or: [ { $and: [{ $eq: ["$type", "INCOME"] }, { $eq: ["$isMySource", true] }] }, { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", false] }, { $eq: ["$isMyTarget", true] }] } ]}, "$amount", 0 ] } },
+           expense: { $sum: { $cond: [ { $or: [ { $and: [{ $eq: ["$type", "EXPENSE"] }, { $eq: ["$isMySource", true] }] }, { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", true] }, { $eq: ["$isMyTarget", false] }] } ]}, "$amount", 0 ] } }
+       }}
+  ];
+  
+  const trendResult = await Transaction.aggregate(trendPipeline);
   const trendMap = new Map<string, { income: number, expense: number }>();
-  for (let i = 0; i < 6; i++) {
-      const d = subMonths(now, i);
-      const key = format(d, "MMM yyyy");
-      if (!trendMap.has(key)) trendMap.set(key, { income: 0, expense: 0 });
-  }
-
-  for (const txn of trendTransactions) {
-      const key = format(txn.date, "MMM yyyy");
-      if (!trendMap.has(key)) trendMap.set(key, { income: 0, expense: 0 });
-      const entry = trendMap.get(key)!;
-
-      const walletId = txn.wallet.toString();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const targetWalletId = (txn as any).targetWallet?.toString();
-      const isMySource = myWalletIds.length === 0 || myWalletIds.includes(walletId);
-      const isMyTarget = targetWalletId && (myWalletIds.length === 0 || myWalletIds.includes(targetWalletId));
-
-      if (myWalletIds.length > 0) {
-          if (txn.type === TransactionType.INCOME && isMySource) entry.income += txn.amount;
-          else if (txn.type === TransactionType.EXPENSE && isMySource) entry.expense += txn.amount;
-          else if (txn.type === TransactionType.TRANSFER) {
-              if (isMySource && !isMyTarget) entry.expense += txn.amount;
-              else if (!isMySource && isMyTarget) entry.income += txn.amount;
-          }
-      } else {
-          if (txn.type === TransactionType.INCOME) entry.income += txn.amount;
-          else if (txn.type === TransactionType.EXPENSE) entry.expense += txn.amount;
-      }
-  }
-
-  // Categories Helper
-  const getCategoryStats = async (map: Map<string, number>) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stats: any[] = [];
-      const keys = Array.from(map.keys());
-      const validIds = keys.filter(k => k.match(/^[0-9a-fA-F]{24}$/));
-
-      if (keys.length > 0) {
-          const { default: CategoryModel } = await import("@/models/Category");
-          const categories = validIds.length > 0 ? await CategoryModel.find({ _id: { $in: validIds } }).lean() : [];
-          
-          map.forEach((val, key) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const cat = categories.find((c: any) => c._id.toString() === key);
-              const name = cat?.name || (key === "Transfer Out" ? "Transfer Out" : 
-                                        key === "Transfer In" ? "Transfer In" : "Uncategorized");
-              stats.push({ name, value: val });
-          });
-      }
-      return stats.sort((a, b) => b.value - a.value);
-  }
-
-  const expenseByCategory = await getCategoryStats(expenseCategoryMap);
-  const incomeByCategory = await getCategoryStats(incomeCategoryMap);
-
-  // 2. Trend Stats
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  trendResult.forEach((t: any) => trendMap.set(t._id, { income: t.income, expense: t.expense }));
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const monthlyTrend: any[] = [];
   for (let i = 5; i >= 0; i--) {
       const d = subMonths(now, i);
-      const key = format(d, "MMM yyyy");
+      const key = format(d, "yyyy-MM");
+      const label = format(d, "MMM yyyy");
       const data = trendMap.get(key) || { income: 0, expense: 0 };
-      monthlyTrend.push({ name: key, ...data });
+      monthlyTrend.push({ name: label, ...data });
   }
 
-  // 3. Daily Trend
+  // 4. Recent Transactions (Keep as Find for population convenience, but Limit 5 is cheap)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dailyTrend: any[] = [];
-  
-  // Use date-fns to generate all days in interval
-  const { eachDayOfInterval } = await import("date-fns");
-  
-  // Safety check for very large ranges
-  const daysDiff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-  
-  if (daysDiff <= 370) {
-      const interval = eachDayOfInterval({ start, end });
-      interval.forEach(date => {
-          const key = format(date, "yyyy-MM-dd");
-          const expense = dailyMap.get(key) || 0;
-          dailyTrend.push({ 
-              date: key, 
-              label: format(date, "d MMM"), // "1 Jan"
-              expense 
-          });
-      });
-  } else {
-      // Too many days, maybe aggregate? For now just return empty to prevent crash
-      // or implement monthly view later.
+  const recentCriteria: any = { isDeleted: false };
+  if (myWalletIds.length > 0) {
+      recentCriteria.$or = [{ wallet: { $in: myWalletIds } }, { targetWallet: { $in: myWalletIds } }];
   }
-
-  // 4. Recent Transactions
-  const recentTransactions = await Transaction.find(buildMatchQuery({})) 
+  const recentTransactions = await Transaction.find(recentCriteria) 
     .sort({ date: -1, createdAt: -1 })
     .limit(5)
     .populate("category wallet targetWallet")
@@ -281,9 +317,6 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
     
   // 5. Debt Stats
   const { getDebtStats } = await import("@/services/debt.service");
-  // Assuming owner logic is same as wallets - if owner specific, get that owner's debts. 
-  // If global (ADAM), get ADAM's debts? 
-  // The dashboard `owner` param is reliable.
   const debtStats = await getDebtStats(ownerId || "ADAM");
 
   // 6. Active Goals
@@ -303,10 +336,12 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
           expense,
           net: income - expense
       },
-      expenseByCategory, // Keep existing name for backward compat if needed, or update consumers
-      incomeByCategory, // New field
-      debtStats, // New debt stats
-      goals, // New goals field
+      // @ts-ignore
+      wallets: searchParams.wallets ? searchParams.wallets.map((w: any) => ({ ...w, _id: w._id.toString(), owner: w.owner.toString() })) : [],
+      expenseByCategory, 
+      incomeByCategory, 
+      debtStats, 
+      goals, 
       monthlyTrend,
       dailyTrend,
        // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -345,10 +380,12 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
 }
 
 // Reuse similar logic for Single Wallet Analytics
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getWalletAnalytics(walletId: string, searchParams: any) {
   await dbConnect();
   
   // 1. Build Date Query based on Search Params
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = { isDeleted: false };
   const mode = searchParams.mode || "MONTH";
   
@@ -383,7 +420,6 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
   query.$or = [{ wallet: walletId }, { targetWallet: walletId }];
 
   // 3. Other Filters
-  // 3. Other Filters
   if (searchParams.type && searchParams.type !== "ALL") {
       if (searchParams.type === "TRANSFER") {
           query.$or = [
@@ -403,9 +439,6 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
       if (searchParams.maxAmount) query.amount.$lte = Number(searchParams.maxAmount);
   }
 
-  // --- AGGREGATION ---
-  // We need to fetch transactions to calculate summary and lists
-  // Sort by date DESC, then by createdAt DESC (for same-day items)
   // --- AGGREGATION ---
   // We need to fetch transactions to calculate summary and lists
   // Sort by date DESC, then by createdAt DESC (for same-day items)
@@ -496,7 +529,8 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
   // Let's do general 6 month trend for this specific wallet.
   const now = new Date();
   const sixMonthsAgo = subMonths(startOfMonth(now), 5);
-  const trendQuery = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const trendQuery: any = {
       date: { $gte: sixMonthsAgo, $lte: endOfMonth(now) },
       isDeleted: false,
       $or: [{ wallet: walletId }, { targetWallet: walletId }]
@@ -515,6 +549,7 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
         if (!trendMap.has(key)) trendMap.set(key, { income: 0, expense: 0 });
         const entry = trendMap.get(key)!;
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isSource = txn.wallet.toString() === walletId;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isTarget = (txn as any).targetWallet?.toString() === walletId;

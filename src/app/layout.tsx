@@ -28,7 +28,7 @@ export const viewport = {
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { BottomNav } from "@/components/BottomNav";
-import { getWallets } from "@/services/wallet.service";
+
 import { Navbar } from "@/components/Navbar";
 import { Shell } from "@/components/Shell";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
@@ -37,18 +37,13 @@ import { Plus } from "lucide-react";
 import { GlobalAddTransactionButton } from "@/components/GlobalAddTransactionButton";
 
 import { Toaster } from "@/components/ui/sonner";
+import Providers from "@/components/Providers";
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let wallets = [];
-  try {
-    wallets = await getWallets();
-  } catch (error) {
-    console.error("Failed to fetch wallets in RootLayout:", error);
-  }
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -56,23 +51,25 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-muted/40`}
       >
         <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Shell>
-                  <Navbar /> {/* Now MobileHeader */}
-                  <main className="flex-1 p-4 md:p-6 lg:p-8 pt-0 md:pt-6 pb-20 md:pb-6 bg-zinc-50 dark:bg-zinc-950 overflow-x-hidden">
-                      {children}
-                  </main>
-            </Shell>
-            <BottomNav wallets={wallets} />
-            
-            <GlobalAddTransactionButton wallets={wallets} />
-            <Toaster />
-          </ThemeProvider>
+          <Providers>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <Shell>
+                    <Navbar /> {/* Now MobileHeader */}
+                    <main className="flex-1 p-4 md:p-6 lg:p-8 pt-0 md:pt-6 pb-20 md:pb-6 bg-zinc-50 dark:bg-zinc-950 overflow-x-hidden">
+                        {children}
+                    </main>
+              </Shell>
+              <BottomNav />
+              
+              <GlobalAddTransactionButton />
+              <Toaster />
+            </ThemeProvider>
+          </Providers>
         </AuthProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
   Accordion,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { EditGoalDialog } from "@/components/GoalDialogs";
 import { AddGoalItemDialog, EditGoalItemDialog, DeleteGoalItemDialog } from "@/components/GoalItemDialogs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,17 +19,35 @@ import { GoalHistoryList } from "@/components/GoalHistoryList";
 import { PayGoalItemDialog } from "@/components/PayGoalItemDialog";
 import { cn } from "@/lib/utils";
 import { EditGroupDialog } from "@/components/GroupDialogs";
+import { useGoal } from "@/hooks/useGoals";
+import { useWallets } from "@/hooks/useWallets";
+import { useRouter } from "next/navigation";
+import { GoalDetailSkeleton } from "@/components/skeletons";
 
 interface GoalDetailViewProps {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    goal: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    wallets: any[];
+    goalId: string;
 }
 
-export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
+interface GoalDetailViewProps {
+    goalId: string;
+}
+
+export function GoalDetailView({ goalId }: GoalDetailViewProps) {
+    const router = useRouter();
+    const { data: goal, isLoading: isGoalLoading, error } = useGoal(goalId);
+    const { data: wallets = [] } = useWallets("ALL");
+
     const [activeTab, setActiveTab] = useState("overview");
     const [historyFilter, setHistoryFilter] = useState<{ type: 'ALL' | 'GROUP' | 'ITEM', id?: string, name?: string }>({ type: 'ALL' });
+
+    if (isGoalLoading) return <GoalDetailSkeleton />;
+    if (error || !goal) return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 opacity-50" />
+            <h1 className="text-2xl font-bold">Goal not found</h1>
+            <Button onClick={() => router.push("/goals")}>Back to Goals</Button>
+        </div>
+    );
 
     // Group items
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,7 +102,7 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
     const goalColor = goal.color || '#6366f1';
 
     return (
-        <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto space-y-8">
+        <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto space-y-8 animate-in fade-in duration-500">
         
         {/* Navigation */}
         <div className="px-4">
@@ -120,38 +137,6 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                     {/* Glass Content Layer */}
                     <div className="relative z-10 backdrop-blur-[2px]"> 
                         <div className="p-8 sm:p-10 flex flex-col h-full"> 
-                        {/* Text color adjustment needed because background is simpler now. 
-                           Actually, if it's glass on card, text might need to be foreground, not white.
-                           BUT user said "glass morpheme", usually implies vibrant or dark background?
-                           "cuma ada warna overlay" implies simple tint.
-                           Let's check if we should keep text white or switch to standard foreground.
-                           If opacity is 10%, it's basically the theme background.
-                           Let's assume we want to keep the "Card" feel but mostly transparent/glassy.
-                           The text colors in previous version were forced to white. 
-                           If I switch background to light tint, white text will disappear on light mode.
-                           
-                           DECISION: Use default text colors (foreground) since the background is now just a tint.
-                           Or keep the "Card" dark/colored?
-                           User said "glass morpheme... color overlay". 
-                           Usually means:
-                           Bg = Glass
-                           Overlay = Color
-                           
-                           If I use `bg-card`, it matches theme.
-                           If I use `goalColor` as overlay, it tints it.
-                           Text should probably match theme (foreground) to be safe, OR force dark/light if the card is meant to be a "colored card".
-                           
-                           The previous design was a "colored card" (white text).
-                           The user said "background glass morpheme" which might mean they want it to blend with the page but look glassy.
-                           
-                           Let's try to make it look like a "Glass Card" that adapts.
-                           I will remove `text-white` classes and let them inherit or set `text-foreground`.
-                           BUT, if the goal color is dark and we overlay it, we might need contrast.
-                           However, `opacity-10` overlay is safe for standard text.
-                           
-                           Let's stick to standard `text-foreground` for safety and cleaner look, 
-                           but maybe keep distinct elements colored.
-                        */}
                             
                             {/* Header Row */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
@@ -452,7 +437,7 @@ export function GoalDetailView({ goal, wallets }: GoalDetailViewProps) {
                                                             <PayGoalItemDialog 
                                                                 goalName={goal.name}
                                                                 item={item}
-                                                                wallets={wallets}
+                                                                wallets={wallets as any[]}
                                                                 trigger={
                                                                     <Button size="sm" className="h-8 text-xs font-medium px-4 shadow-sm hover:shadow-md transition-all">
                                                                         + Pay

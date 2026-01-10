@@ -7,9 +7,10 @@ interface MonthlySummaryProps {
   income: number;
   expense: number;
   net: number;
+  periodLabel?: string;
 }
 
-export function MonthlySummary({ income, expense, net }: MonthlySummaryProps) {
+export function MonthlySummary({ income, expense, net, periodLabel = "Selected Period" }: MonthlySummaryProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -34,7 +35,7 @@ export function MonthlySummary({ income, expense, net }: MonthlySummaryProps) {
             </div>
             <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(income)}</div>
             <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
-                This month
+                {periodLabel}
             </p>
         </div>
       </div>
@@ -53,7 +54,7 @@ export function MonthlySummary({ income, expense, net }: MonthlySummaryProps) {
             </div>
             <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{formatCurrency(expense)}</div>
             <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-1">
-                This month
+                {periodLabel}
             </p>
         </div>
       </div>
@@ -74,7 +75,7 @@ export function MonthlySummary({ income, expense, net }: MonthlySummaryProps) {
                  {formatCurrency(net)}
             </div>
             <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-1">
-                 Income - Expense
+                {periodLabel}
             </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getDebtsAction, deleteDebtAction } from "@/actions/debt";
+import { useDebts, useDeleteDebt } from "@/hooks/useDebts";
+import { useWallets } from "@/hooks/useWallets";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit, ExternalLink, Calendar, Copy, ArrowUpRight, ArrowDownLeft, Wallet, AlertCircle } from "lucide-react";
@@ -11,27 +11,20 @@ import { format, isPast, isToday, addDays } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AppLoader } from "@/components/ui/app-loader";
+import { DebtListSkeleton } from "@/components/skeletons";
 
 export function DebtList() {
-    const [debts, setDebts] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchDebts = () => {
-        getDebtsAction().then(data => {
-            setDebts(data);
-            setLoading(false);
-        });
-    };
-
-    useEffect(() => {
-        fetchDebts();
-    }, []);
+    const { data: debts = [], isLoading } = useDebts();
+    const { mutateAsync: deleteDebt } = useDeleteDebt();
+    const { data: wallets = [] } = useWallets("ALL"); // Fetch wallets for Settle Dialog
 
     const handleDelete = async (id: string) => {
         if (confirm("Are you sure you want to delete this record?")) {
-             await deleteDebtAction(id);
-             fetchDebts();
+             try {
+                await deleteDebt(id);
+             } catch (error) {
+                alert("Failed to delete");
+             }
         }
     };
 
@@ -43,11 +36,15 @@ export function DebtList() {
     };
 
     // Calculate Stats
-    const activeDebts = debts.filter(d => d.status === "ACTIVE");
-    const totalLent = activeDebts.filter(d => d.type === "LENT").reduce((sum, d) => sum + d.amount, 0);
-    const totalBorrowed = activeDebts.filter(d => d.type === "BORROWED").reduce((sum, d) => sum + d.amount, 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const activeDebts = debts.filter((d: any) => d.status === "ACTIVE");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalLent = activeDebts.filter((d: any) => d.type === "LENT").reduce((sum: number, d: any) => sum + d.amount, 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalBorrowed = activeDebts.filter((d: any) => d.type === "BORROWED").reduce((sum: number, d: any) => sum + d.amount, 0);
     const totalVolume = totalLent + totalBorrowed;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const renderCard = (debt: any) => {
         const isLent = debt.type === "LENT";
         const isPaid = debt.status === "PAID";
@@ -115,7 +112,6 @@ export function DebtList() {
                     <div className="flex gap-1">
                          <DebtFormDialog 
                             debt={debt} 
-                            onSaved={fetchDebts}
                             trigger={
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                     <Edit className="w-4 h-4" />
@@ -141,7 +137,7 @@ export function DebtList() {
                          {!isPaid && (
                             <SettleDebtDialog 
                                 debt={debt} 
-                                onSettled={fetchDebts}
+                                wallets={wallets as any[]}
                                 trigger={
                                     <Button size="sm" className={`h-8 text-xs gap-1 ${
                                         isLent 
@@ -158,9 +154,9 @@ export function DebtList() {
                 </CardFooter>
             </Card>
         );
-    }
-
-    if (loading) return <AppLoader text="Loading records..." className="py-20" />;
+    };
+    
+    if (isLoading) return <DebtListSkeleton />;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -205,15 +201,17 @@ export function DebtList() {
                             <TabsTrigger value="HISTORY">History</TabsTrigger>
                         </TabsList>
                         
-                        <DebtFormDialog onSaved={fetchDebts} />
+                        <DebtFormDialog />
                     </div>
 
                     <TabsContent value="ACTIVE" className="space-y-8">
                         <div>
                              <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">Receivables (Piutang)</h3>
                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {activeDebts.filter(d => d.type === "LENT").map(renderCard)}
-                                {activeDebts.filter(d => d.type === "LENT").length === 0 && (
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                {activeDebts.filter((d: any) => d.type === "LENT").map(renderCard)}
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                {activeDebts.filter((d: any) => d.type === "LENT").length === 0 && (
                                     <div className="col-span-full py-8 text-center border-2 border-dashed rounded-xl bg-muted/30">
                                         <p className="text-muted-foreground">No active receivables. Good for them!</p>
                                     </div>
@@ -224,8 +222,10 @@ export function DebtList() {
                         <div>
                              <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">Payables (Utang)</h3>
                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {activeDebts.filter(d => d.type === "BORROWED").map(renderCard)}
-                                {activeDebts.filter(d => d.type === "BORROWED").length === 0 && (
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                {activeDebts.filter((d: any) => d.type === "BORROWED").map(renderCard)}
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                {activeDebts.filter((d: any) => d.type === "BORROWED").length === 0 && (
                                     <div className="col-span-full py-8 text-center border-2 border-dashed rounded-xl bg-muted/30">
                                         <p className="text-muted-foreground">No active debts. You are debt free!</p>
                                     </div>
@@ -236,8 +236,10 @@ export function DebtList() {
 
                     <TabsContent value="HISTORY">
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {debts.filter(d => d.status === "PAID").map(renderCard)}
-                            {debts.filter(d => d.status === "PAID").length === 0 && (
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {debts.filter((d: any) => d.status === "PAID").map(renderCard)}
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {debts.filter((d: any) => d.status === "PAID").length === 0 && (
                                 <div className="col-span-full py-12 text-center text-muted-foreground">
                                     No history yet. Settle some debts to see them here.
                                 </div>

@@ -17,11 +17,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { DialogFooter } from "@/components/ui/dialog";
-import { createDebtAction, updateDebtAction } from "@/actions/debt";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Plus, Loader2, Upload, FileText, X } from "lucide-react";
 import { upload } from "@vercel/blob/client";
+import { useCreateDebt, useUpdateDebt } from "@/hooks/useDebts";
 
 const formSchema = z.object({
   type: z.enum(["LENT", "BORROWED"]),
@@ -47,6 +47,9 @@ export function DebtFormDialog({ debt, trigger, open: controlledOpen, onOpenChan
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { mutateAsync: createDebt } = useCreateDebt();
+  const { mutateAsync: updateDebt } = useUpdateDebt();
 
   const isControlled = typeof controlledOpen !== "undefined";
   const open = isControlled ? controlledOpen : internalOpen;
@@ -100,21 +103,26 @@ export function DebtFormDialog({ debt, trigger, open: controlledOpen, onOpenChan
         proofUrl: values.proofUrl,
     };
 
-    let res;
-    if (debt) {
-        res = await updateDebtAction(debt._id, payload);
-    } else {
-        res = await createDebtAction(payload);
-    }
+    try {
+        let res;
+        if (debt) {
+            res = await updateDebt({ id: debt._id, data: payload });
+        } else {
+            res = await createDebt(payload);
+        }
 
-    setLoading(false);
+        setLoading(false);
 
-    if (res.success) {
-      setOpen(false);
-      form.reset();
-      if (onSaved) onSaved();
-    } else {
-      alert(res.message || "Failed to save record");
+        if (res.success) {
+            setOpen(false);
+            form.reset();
+            if (onSaved) onSaved();
+        } else {
+            alert(res.message || "Failed to save record");
+        }
+    } catch (error: any) {
+        setLoading(false);
+        alert(error.message || "Failed");
     }
   }
 
