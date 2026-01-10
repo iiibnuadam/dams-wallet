@@ -56,9 +56,7 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
                         </h1>
                         <p className="text-muted-foreground">Comprehensive health check & reports.</p>
                    </div>
-                   {/* Removed separate button, integrated view */}
                </div>
-               
                
                <AnalyticsControls defaultView={viewToUse} />
                <SmartSummary insights={insights} />
@@ -67,11 +65,15 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
         {/* 2. Macro View */}
         <section className="space-y-4">
              <h2 className="text-xl font-semibold flex items-center gap-2">1. Macro View <span className="text-sm font-normal text-muted-foreground">(Trend & Cash Flow)</span></h2>
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-             <NetWorthChart data={trend} />
-             <CashFlowChart data={trend} />
-        </div>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                 <NetWorthChart data={trend} />
+                 <CashFlowChart data={trend} />
+             </div>
+             {/* Financial Velocity Table Removed */}
         </section>
+        
+        {/* ... Rest of sections ... */}
+
 
         {/* 3. Spending Behavior */}
         <section className="space-y-4">
@@ -126,7 +128,7 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
         {/* 5. Daily Trend (Deep Dive) */}
         <section className="space-y-4">
              <h2 className="text-xl font-semibold">4. Daily Activity</h2>
-             <DailyTrend data={dailyTrend} />
+             <DailyTrend data={dailyTrend} average={summary.avgDailyExpense} />
         </section>
 
         <AnalyticsExportListener data={{

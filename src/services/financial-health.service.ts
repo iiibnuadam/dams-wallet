@@ -56,11 +56,18 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     };
 
     // 2. Intelligent Aggregation Logic
-    const diffDays = differenceInDays(end, start);
+    const now = new Date();
+    // For velocity/trend calculation, if the period includes "future" days relative to now, we should count only up to "now"
+    // to avoid diluting the average.
+    const effectiveEnd = (end > now && start < now) ? now : end;
+    const diffDays = Math.max(1, differenceInDays(effectiveEnd, start));
+    
+    // For granularity choice, we still check the full requested range to decide view mode
+    const totalRangeDays = differenceInDays(end, start);
     let granularity: 'day' | 'month' | 'year' = 'month';
     
-    if (diffDays <= 31) granularity = 'day';
-    else if (diffDays <= 730) granularity = 'month'; // Up to 2 years
+    if (totalRangeDays <= 31) granularity = 'day';
+    else if (totalRangeDays <= 730) granularity = 'month'; // Up to 2 years
     else granularity = 'year';
 
     // Generate Intervals
@@ -259,12 +266,24 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     }
     
     // --- D. COUPLE DYNAMICS: Contribution Radar ---
+    // Ensure User model is registered for population
+    await import("@/models/User");
+    
+    // Refresh query with population for owner
+    const radarTxns = await Transaction.find(buildMatchQuery({ $gte: startOfDay(start), $lte: endOfDay(end) }))
+        .populate("category")
+        .populate({
+            path: "wallet",
+            populate: { path: "owner", select: "name" }
+        })
+        .lean();
+
     const ownerContributionMap = new Map<string, Map<string, number>>(); // Owner -> { Category -> Amount }
     
-    currentTxns.forEach(txn => {
+    radarTxns.forEach(txn => {
         if (txn.type === TransactionType.EXPENSE) {
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const wOwner = (txn.wallet as any)?.owner || "Unknown";
+            const wOwner = (txn.wallet as any)?.owner?.name || "Unknown";
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const catName = (txn.category as any)?.name || "Other";
             
@@ -274,7 +293,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
         }
     });
 
-    const categoriesList = Array.from(new Set(currentTxns.map(t => 
+    const categoriesList = Array.from(new Set(radarTxns.map(t => 
          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (t.category as any)?.name || "Other"
     )));
@@ -318,21 +337,48 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
     });
 
     // --- F. AI INSIGHTS GENERATION ---
+    // --- F. AI INSIGHTS GENERATION ---
     const insights: { title: string; value: string; message: string; status: 'positive' | 'warning' | 'neutral' }[] = [];
+    
+    // Universal Calculations based on effective days
+    const monthsDiff = Math.max(diffDays / 30, 0.033); // Avoid div by zero, min 1 day
     
     const totalIncome = trendData.reduce((sum: number, t: any) => sum + t.income, 0);
     const totalExpense = trendData.reduce((sum: number, t: any) => sum + t.expense, 0);
     const cashFlow = totalIncome - totalExpense;
+    
+    const avgMonthlyIncome = totalIncome / monthsDiff;
+    const avgMonthlyExpense = totalExpense / monthsDiff;
+    const avgMonthlySaving = cashFlow / monthsDiff;
+    
     const savingsRate = totalIncome > 0 ? (cashFlow / totalIncome) * 100 : 0;
 
+    // 1. Monthly Insights (Only if >= 3 Months)
+    if (diffDays >= 90) {
+        insights.push({
+            title: "Monthly Burn Rate",
+            value: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(avgMonthlyExpense),
+            message: "Your estimated average monthly spending based on this period's activity.",
+            status: 'neutral'
+        });
+
+        insights.push({
+            title: "Monthly Saving",
+            value: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(avgMonthlySaving),
+            message: avgMonthlySaving > 0 
+                ? "You are cash flow positive on a monthly basis." 
+                : "You have a monthly deficit.",
+            status: avgMonthlySaving > 0 ? 'positive' : 'warning'
+        });
+    }
+
     if (granularity === 'day') {
-        // MICRO VIEW
         const avgDailyExpense = totalExpense / (trendData.length || 1);
         insights.push({
             title: "Daily Burn Rate",
             value: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(avgDailyExpense),
-            message: `You are spending average of ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(avgDailyExpense)} / day during this period.`,
-            status: avgDailyExpense > 500000 ? 'warning' : 'neutral' // Threshold example
+            message: `Spending approx. ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", compactDisplay: "short", notation: "compact" }).format(avgDailyExpense)} / day.`,
+            status: avgDailyExpense > 500000 ? 'warning' : 'neutral'
         });
 
         if (cashFlow < 0) {
@@ -350,19 +396,20 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
                 status: 'positive'
              });
         }
-    } else if (granularity === 'month') {
-        // STANDARD VIEW
+    } else {
+         // Standard Savings Rate for Month/Year view
         insights.push({
             title: "Savings Rate",
             value: savingsRate.toFixed(1) + "%",
             message: savingsRate > 20 
-                ? "Excellent! You're saving consistently above 20%." 
+                ? "Excellent! >20% savings rate." 
                 : savingsRate > 0 
-                ? "You're saving, but aim for 20% to build wealth faster." 
-                : "You spent more than you earned.",
+                ? "Positive, but aim for 20%." 
+                : "Expenses exceeded income.",
             status: savingsRate > 20 ? 'positive' : savingsRate > 0 ? 'neutral' : 'warning'
         });
 
+        // Fixed Cost Burden (Restored)
         const fixedRatio = (fixedTotal + variableTotal) > 0 ? (fixedTotal / (fixedTotal + variableTotal)) * 100 : 0;
         insights.push({
             title: "Fixed Cost Burden",
@@ -373,31 +420,30 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
             status: fixedRatio > 60 ? 'warning' : 'positive'
         });
 
-        // BORROWING POWER (DTI Insight)
-        // Assumption: Safe Debt Service Ratio is 30% of Gross Income.
-        // We use 'fixedTotal' as a proxy for mandatory obligations if we can't distinguish explicit debt.
-        // Or strictly use 30% - (Fixed Expenses that are Debts).
-        // For safety, let's use: Borrowing Power = (Income * 30%) - Existing Fixed Costs. (Very conservative)
-        // Less conservative: Borrowing Power = (Income * 35%) - Fixed Costs.
-        const safeDebtRatio = 0.35; // 35% DTI
-        const maxSafeInstallment = totalIncome * safeDebtRatio;
-        const availableCapacity = maxSafeInstallment - fixedTotal; // Assuming Fixed Expenses include existing debts
-        
-        if (totalIncome > 0) {
+        // Borrowing Power (DTI)
+        // Only valid if we have enough data (e.g. at least a full month)
+        if (diffDays >= 28 && totalIncome > 0) {
+            const fixedRatio = (fixedTotal + variableTotal) > 0 ? (fixedTotal / (fixedTotal + variableTotal)) * 100 : 0;
+            const safeDebtRatio = 0.35; 
+            const maxSafeInstallment = avgMonthlyIncome * safeDebtRatio;
+            const avgMonthlyFixed = fixedTotal / monthsDiff;
+            const availableCapacity = maxSafeInstallment - avgMonthlyFixed;
+
              insights.push({
                 title: "Borrowing Power",
                 value: availableCapacity > 0 
                     ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(availableCapacity) + " /mo"
                     : "Maxed Out",
                 message: availableCapacity > 0 
-                    ? "Safe monthly installment limit for new loans (35% DTI)."
+                    ? "Safe monthly installment limit (35% DTI)."
                     : "You exceeded the safe debt/fixed cost limit. Avoid new loans.",
                 status: availableCapacity > 0 ? 'positive' : 'warning'
              });
         }
+    }
 
-    } else {
-        // MACRO VIEW (Year)
+    // Macro View (Year) Specific (Restored)
+    if (granularity === 'year') {
         const startNW = trendData[0]?.netWorth || 0;
         const endNW = trendData[trendData.length - 1]?.netWorth || 0;
         const growth = endNW - startNW;
@@ -407,7 +453,7 @@ export async function getFinancialHealthData(owner?: string, searchParams?: any)
             title: "Net Worth Growth",
             value: (growth >= 0 ? "+" : "") + growthPercent.toFixed(1) + "%",
             message: growth >= 0 
-                ? `Your wealth grew by ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact" }).format(growth)} in this period.`
+                ? `Your wealth grew by ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact" }).format(growth)}.`
                 : "Your net worth decreased. Check major liabilities or expenses.",
             status: growth >= 0 ? 'positive' : 'warning'
         });

@@ -41,7 +41,7 @@ export function SimpleWalletItem({ wallet }: SimpleWalletItemProps) {
                 </div>
                 <div>
                     <h3 className="font-semibold text-base leading-tight group-hover:translate-x-1 transition-transform">{wallet.name}</h3>
-                    <p className="text-xs text-white/70">{wallet.owner}</p>
+                    <p className="text-xs text-white/70">{wallet.ownerName || wallet.owner}</p>
                 </div>
             </div>
             

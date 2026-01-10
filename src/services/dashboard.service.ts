@@ -334,7 +334,9 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
       summary: {
           income,
           expense,
-          net: income - expense
+          net: income - expense,
+          avgDailyIncome: income / daysDiff,
+          avgDailyExpense: expense / daysDiff
       },
       // @ts-ignore
       wallets: searchParams.wallets ? searchParams.wallets.map((w: any) => ({ ...w, _id: w._id.toString(), owner: w.owner.toString() })) : [],

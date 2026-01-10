@@ -38,4 +38,5 @@ export interface IWallet {
     updatedAt?: Date;
     // Dynamic fields from aggregation
     currentBalance?: number; 
+    ownerName?: string;
 }

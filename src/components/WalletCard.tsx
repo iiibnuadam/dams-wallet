@@ -47,7 +47,7 @@ export function WalletCard({ wallet }: WalletCardProps) {
       <CardContent className="relative z-10">
         <div className="text-2xl font-bold truncate tracking-tight">{formatCurrency(balance)}</div>
         <div className="text-xs opacity-75 mt-1 font-medium flex items-center gap-1">
-          <span>{wallet.owner}</span>
+          <span>{wallet.ownerName}</span>
           <span>•</span>
           <span className="capitalize">{wallet.type.toLowerCase()}</span>
         </div>

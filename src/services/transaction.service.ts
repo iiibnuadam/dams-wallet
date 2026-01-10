@@ -22,6 +22,45 @@ export async function createTransaction(data: Partial<ITransaction>) {
     }
   }
 
+  // --- Automatic 'Goals' Categorization ---
+  // If transaction is linked to a goal item, force category to "Goals"
+  if (data.goalItem) {
+      const { default: Category, CategoryType } = await import("../models/Category");
+      let goalCategory = await Category.findOne({ name: "Goals", type: CategoryType.EXPENSE, isDeleted: false });
+      
+      if (!goalCategory) {
+          goalCategory = await Category.create({
+              name: "Goals",
+              type: CategoryType.EXPENSE,
+              flexibility: "FIXED" 
+          });
+      }
+      
+      if (goalCategory) {
+          data.category = goalCategory._id as any;
+      }
+  }
+
+  // --- Automatic 'Admin Fee' Categorization ---
+  // If description indicates Admin Fee, force category to "Admin Fee"
+  if (data.description && data.description.toLowerCase().includes("admin fee")) {
+      const { default: Category, CategoryType } = await import("../models/Category");
+      let feeCategory = await Category.findOne({ name: "Admin Fee", type: CategoryType.EXPENSE, isDeleted: false });
+      
+      if (!feeCategory) {
+          feeCategory = await Category.create({
+              name: "Admin Fee",
+              type: CategoryType.EXPENSE,
+              flexibility: "FIXED"
+          });
+      }
+      
+      if (feeCategory) {
+          data.category = feeCategory._id as any;
+      }
+  }
+
+
   const transaction = await Transaction.create(data);
   return transaction;
 }
@@ -125,7 +164,113 @@ export async function getTransactions(params: any) {
     const limit = Number(params.limit) || 15;
     const skip = (page - 1) * limit;
 
+    // --- Summary Aggregation ---
+    // Efficiently calculate totals for the current filter
+    // We use facet to get both overall totals and category breakdown
+    const summaryAggregation = await Transaction.aggregate([
+        { $match: query },
+        {
+            $facet: {
+                "totals": [
+                    {
+                        $group: {
+                            _id: null,
+                            totalIncome: {
+                                $sum: { $cond: [{ $eq: ["$type", "INCOME"] }, "$amount", 0] }
+                            },
+                            totalExpense: {
+                                $sum: { $cond: [{ $eq: ["$type", "EXPENSE"] }, "$amount", 0] }
+                            }
+                        }
+                    }
+                ],
+                "byCategory": [
+                    {
+                        $addFields: {
+                            groupKey: {
+                                $cond: [
+                                    { $ifNull: ["$goalItem", false] },
+                                    "GOAL",
+                                    "$category"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: { key: "$groupKey", type: "$type" },
+                            total: { $sum: "$amount" }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "categories",
+                            localField: "_id.key",
+                            foreignField: "_id",
+                            as: "categoryDoc"
+                        }
+                    },
+                    {
+                        $project: {
+                            type: "$_id.type",
+                            categoryName: {
+                                $cond: [
+                                    { $eq: ["$_id.key", "GOAL"] },
+                                    "Goals",
+                                    { $arrayElemAt: ["$categoryDoc.name", 0] }
+                                ]
+                            },
+                             // Use hardcoded color/icon for Goals if needed, or rely on frontend utils
+                            categoryColor: { $arrayElemAt: ["$categoryDoc.color", 0] },
+                            categoryIcon: { $arrayElemAt: ["$categoryDoc.icon", 0] },
+                            total: 1
+                        }
+                    },
+                    { $sort: { total: -1 } }
+                ]
+            }
+        }
+    ]);
+    
+    // Process Aggregation Result
+    const totals = summaryAggregation[0].totals[0] || { totalIncome: 0, totalExpense: 0 };
+    const byCategory = summaryAggregation[0].byCategory || [];
+
+    const summary = {
+        totalIncome: totals.totalIncome,
+        totalExpense: totals.totalExpense,
+        net: totals.totalIncome - totals.totalExpense,
+        // Detailed breakdown
+        incomeCategories: byCategory.filter((c: any) => c.type === "INCOME").map((c: any) => ({
+             name: c.categoryName || "Uncategorized",
+             value: c.total,
+             color: c.categoryColor,
+             icon: c.categoryIcon
+        })),
+        expenseCategories: byCategory.filter((c: any) => c.type === "EXPENSE").map((c: any) => ({
+             name: c.categoryName || "Uncategorized",
+             value: c.total,
+             color: c.categoryColor,
+             icon: c.categoryIcon
+        }))
+    };
+
+
     // --- Fetch Data ---
+    // If summaryOnly is requested, skip fetching the list
+    if (params.summaryOnly) {
+         return {
+            transactions: [],
+            pagination: {
+                currentPage: page,
+                totalPages: 0,
+                totalItems: 0,
+                limit
+            },
+            summary
+        };
+    }
+
     const [transactions, totalItems] = await Promise.all([
         Transaction.find(query)
             .sort({ date: -1, createdAt: -1 })
@@ -188,6 +333,7 @@ export async function getTransactions(params: any) {
             totalPages,
             totalItems,
             limit
-        }
+        },
+        summary
     };
 }

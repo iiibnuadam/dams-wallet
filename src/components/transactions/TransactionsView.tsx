@@ -7,6 +7,7 @@ import { useWallets } from "@/hooks/useWallets";
 import { History, User, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { TransactionSummaryStats } from "@/components/transactions/TransactionSummaryStats";
 
 export function TransactionsView() {
     const searchParams = useSearchParams();
@@ -69,6 +70,9 @@ export function TransactionsView() {
                             })}
                         </div>
                     </div>
+
+                    {/* Transaction Summary Cards */}
+                    <TransactionSummaryStats params={params} />
 
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     <TransactionFilters wallets={wallets as any[] || []} />

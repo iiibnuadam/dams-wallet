@@ -56,7 +56,7 @@ export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBr
 
   return (
     <Card className="col-span-1 border-none shadow-none min-h-[300px]">
-      <CardHeader className="px-4 pt-4">
+      <CardHeader className="px-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                  <CardTitle className="text-lg">{title}</CardTitle>

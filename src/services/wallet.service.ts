@@ -78,6 +78,14 @@ export async function getWallets(owner?: string) {
       },
     },
     {
+      $lookup: {
+          from: "users",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerDetails"
+      }
+    },
+    {
       $project: {
         transactions: 0,
       },
@@ -88,6 +96,7 @@ export async function getWallets(owner?: string) {
       ...wallet,
       _id: wallet._id.toString(),
       owner: wallet.owner?.toString(),
+      ownerName: wallet.ownerDetails?.[0]?.name || "Unknown",
       liabilityDetails: wallet.liabilityDetails ? {
           ...wallet.liabilityDetails,
           startDate: wallet.liabilityDetails.startDate ? new Date(wallet.liabilityDetails.startDate).toISOString() : undefined

@@ -1,7 +1,5 @@
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface DailyTrendProps {
     data: {
@@ -9,9 +7,10 @@ interface DailyTrendProps {
         date: string;
         expense: number;
     }[];
+    average?: number;
 }
 
-export function DailyTrend({ data }: DailyTrendProps) {
+export function DailyTrend({ data, average }: DailyTrendProps) {
     return (
         <Card className="col-span-1">
             <CardHeader>
@@ -51,6 +50,14 @@ export function DailyTrend({ data }: DailyTrendProps) {
                                 fillOpacity={1} 
                                 fill="url(#colorExpense)" 
                             />
+                            {average && (
+                                <ReferenceLine 
+                                    y={average} 
+                                    stroke="#f59e0b" 
+                                    strokeDasharray="3 3" 
+                                    label={{ value: "Avg", position: "insideBottomRight", fill: "#f59e0b" }} 
+                                />
+                            )}
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>

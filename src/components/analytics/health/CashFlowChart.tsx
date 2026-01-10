@@ -34,14 +34,11 @@ export function CashFlowChart({ data }: { data: any[] }) {
               <Tooltip
                  cursor={{ fill: 'transparent' }}
                  contentStyle={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e5e5' }}
-                 formatter={(value: any) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(Number(value))}
+                 formatter={(value, name) => [new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value)), name === "income" ? "Income" : "Expense"]}
               />
               <ReferenceLine y={0} stroke="#000" />
-              <Bar dataKey="cashFlow" radius={[4, 4, 0, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.cashFlow >= 0 ? "#22c55e" : "#ef4444"} />
-                ))}
-              </Bar>
+              <Bar dataKey="expense" stackId="a" fill="#ef4444" radius={[0, 0, 4, 4]} name="Expense" />
+              <Bar dataKey="income" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} name="Income" />
             </BarChart>
           </ResponsiveContainer>
         </div>
