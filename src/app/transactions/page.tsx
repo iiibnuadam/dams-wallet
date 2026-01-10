@@ -1,4 +1,5 @@
 import { TransactionsView } from "@/components/transactions/TransactionsView";
+import { Suspense } from "react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function TransactionsPage() {
-    return <TransactionsView />;
+    return (
+        <Suspense fallback={<div>Loading transactions...</div>}>
+            <TransactionsView />
+        </Suspense>
+    );
 }
