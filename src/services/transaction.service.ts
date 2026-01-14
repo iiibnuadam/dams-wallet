@@ -4,6 +4,7 @@ import dbConnect from "../lib/db";
 import { startOfMonth, endOfMonth, startOfDay, endOfDay, parse } from "date-fns";
 import "@/models/GoalItem"; // Register GoalItem schema
 import "@/models/Goal"; // Register Goal schema
+import "@/models/Category"; // Register Category schema
 
 export async function createTransaction(data: Partial<ITransaction>) {
   await dbConnect();

@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db";
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, startOfWeek, endOfWeek, parse, startOfYear, endOfYear, isSameMonth } from "date-fns";
 import "@/models/GoalItem"; // Register GoalItem schema
 import "@/models/Goal"; // Register Goal schema
+import "@/models/Category"; // Register Category schema
 import mongoose from "mongoose";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
