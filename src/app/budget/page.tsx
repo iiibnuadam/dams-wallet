@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function BudgetPage() {
   return (
-    <div className="container py-8 space-y-8">
+    <div className="container py-8 space-y-8 mx-auto">
       <Suspense fallback={<div>Loading budget view...</div>}>
          <BudgetDashboard />
       </Suspense>
