@@ -116,7 +116,11 @@ export async function getTransactions(params: any) {
 
     // 4. Category Filter
     if (params.categoryId && params.categoryId !== "ALL") {
-        query.category = params.categoryId;
+        if (params.categoryId.includes(',')) {
+            query.category = { $in: params.categoryId.split(',') };
+        } else {
+            query.category = params.categoryId;
+        }
     }
 
     // 5. Search Filter (Description)
@@ -141,22 +145,46 @@ export async function getTransactions(params: any) {
     }
 
     // 7. User Filter (Wallet Ownership)
-    const currentUser = params.currentUser;
-    const userFilter = params.userFilter || "ME"; 
-
-    if (currentUser) {
-        // Find wallets owned by current user
-        const wallets = await Wallet.find({ owner: currentUser }).select("_id");
-        const myWalletIds = wallets.map(w => w._id);
-
-        if (userFilter === "ME") {
-            // Transactions where the primary wallet is owned by me
-            query.wallet = { $in: myWalletIds };
-        } else if (userFilter === "OTHERS") {
-            // Transactions where the primary wallet is NOT owned by me
-            query.wallet = { $nin: myWalletIds };
+    // Supports explicit 'view' (username) or legacy 'userFilter' (ME/OTHERS)
+    const view = params.view || params.owner;
+    
+    if (view && view !== "ALL") {
+         const { default: User } = await import("../models/User");
+         const targetUser = await User.findOne({ username: { $regex: new RegExp(`^${view}$`, "i") } });
+         
+         if (targetUser) {
+             const targetWallets = await Wallet.find({ owner: targetUser._id, isDeleted: false } as any).select("_id");
+             const walletIds = targetWallets.map(w => w._id);
+             query.wallet = { $in: walletIds };
+         }
+    } else if (view === "ALL") {
+        const { default: User } = await import("@/models/User");
+        // Explicitly fetch distinct IDs for ADAM an SASTI to be safe, or just don't filter if we want everything
+        // But to match specific requested users:
+        const users = await User.find({ username: { $in: ["ADAM", "SASTI"] } }).select("_id");
+        if (users.length > 0) {
+            const userIds = users.map(u => u._id);
+            const targetWallets = await Wallet.find({ owner: { $in: userIds }, isDeleted: false } as any).select("_id");
+            query.wallet = { $in: targetWallets.map(w => w._id) };
         }
-        // ALL = no filter
+    } else {
+        // Legacy "ME / OTHERS" fallback if no specific view provided
+        const currentUser = params.currentUser;
+        const userFilter = params.userFilter || "ME"; 
+    
+        if (currentUser && userFilter !== "ALL") {
+            // Find wallets owned by current user
+            const wallets = await Wallet.find({ owner: currentUser }).select("_id");
+            const myWalletIds = wallets.map(w => w._id);
+    
+            if (userFilter === "ME") {
+                // Transactions where the primary wallet is owned by me
+                query.wallet = { $in: myWalletIds };
+            } else if (userFilter === "OTHERS") {
+                // Transactions where the primary wallet is NOT owned by me
+                query.wallet = { $nin: myWalletIds };
+            }
+        }
     }
 
     // --- Pagination ---

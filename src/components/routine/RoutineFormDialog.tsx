@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,7 +21,7 @@ import { createRoutineAction, updateRoutineAction } from "@/actions/routine";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Plus, Loader2, Pencil } from "lucide-react";
-import { getCategories } from "@/actions/category";
+import { getCategoriesAction } from "@/actions/category-actions";
 
 const formSchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -54,7 +55,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
   
   useEffect(() => {
     if (open) {
-        getCategories().then(setCategories);
+        getCategoriesAction().then(setCategories);
     }
   }, [open]);
 
@@ -107,7 +108,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
       form.reset();
       if (onSaved) onSaved();
     } else {
-      alert(res.message || "Failed to save routine");
+      toast.error(res.message || "Failed to save routine");
     }
   }
 

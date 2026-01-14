@@ -71,7 +71,7 @@ export function GoalDetailSkeleton() {
             </div>
             
             <div className="container px-4">
-                 <div className="rounded-[32px] bg-card border h-[400px] p-8 space-y-8">
+                 <div className="rounded-[32px] bg-card border h-[550px] p-8 space-y-8">
                       <div className="flex justify-between items-center">
                            <div className="flex gap-4 items-center">
                                <Skeleton className="w-10 h-10 md:w-20 md:h-20 rounded-[20px]" />

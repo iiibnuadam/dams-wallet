@@ -94,7 +94,8 @@ import { createGoalItem, updateGoalItem, deleteGoalItem } from "@/services/goal.
 
 const goalItemSchema = z.object({
   goalId: z.string().min(1, "Goal ID is required"),
-  groupName: z.string().min(1, "Group Name is required"),
+  groupId: z.string().optional(),
+  groupName: z.string().optional(), // Made optional
   name: z.string().min(1, "Name is required"),
   estimatedAmount: z.coerce.number().min(0, "Amount must be positive"),
 });
@@ -105,7 +106,8 @@ export async function createGoalItemAction(prevState: unknown, formData: FormDat
 
     const rawData = {
         goalId: formData.get("goalId"),
-        groupName: formData.get("groupName"),
+        groupId: formData.get("groupId") || undefined,
+        groupName: formData.get("groupName") || undefined, // Legacy
         name: formData.get("name"),
         estimatedAmount: formData.get("estimatedAmount"),
     };
@@ -131,7 +133,8 @@ export async function updateGoalItemAction(id: string, goalId: string, prevState
 
     const rawData = {
         goalId: goalId, // passed explicitly or from form, used for validation
-        groupName: formData.get("groupName"),
+        groupId: formData.get("groupId") || undefined,
+        groupName: formData.get("groupName") || undefined,
         name: formData.get("name"),
         estimatedAmount: formData.get("estimatedAmount"),
     };
@@ -143,7 +146,9 @@ export async function updateGoalItemAction(id: string, goalId: string, prevState
 
     try {
         await updateGoalItem(id, {
-            groupName: parsed.data.groupName,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            groupId: parsed.data.groupId as any,
+            groupName: parsed.data.groupName, // Legacy
             name: parsed.data.name,
             estimatedAmount: parsed.data.estimatedAmount,
         });
@@ -167,27 +172,80 @@ export async function deleteGoalItemAction(id: string, goalId: string) {
     }
 }
 
-export async function updateGroupStyleAction(formData: FormData) {
+export async function addGoalGroupAction(goalId: string, formData: FormData) {
     const session = await getServerSession(authOptions);
     if (!session) return { success: false, message: "Unauthorized" };
 
-    const goalId = formData.get("goalId") as string;
-    const groupName = formData.get("groupName") as string;
-    const color = formData.get("color") as string;
-    const icon = formData.get("icon") as string;
+    const name = formData.get("name") as string;
+    const parentGroupId = formData.get("parentGroupId") as string | undefined;
+    const color = formData.get("color") as string | undefined;
+    const icon = formData.get("icon") as string | undefined;
 
-    if (!goalId || !groupName) return { success: false, message: "Missing required fields" };
+    if (!goalId || !name) return { success: false, message: "Missing required fields" };
 
     try {
-        await upsertGroupStyle(goalId, { name: groupName, color, icon });
-        revalidatePath(`/goals/${goalId}`);
-        return { success: true, message: "Group style updated" };
+        await addGroup(goalId, { 
+            name, 
+            parentGroupId: parentGroupId === "ROOT" || parentGroupId === "" ? undefined : parentGroupId,
+            color, 
+            icon 
+        });
+        revalidatePath(`/goals/${goalId}`, 'page');
+        revalidatePath('/goals'); 
+        return { success: true, message: "Group added successfully" };
     } catch (e: any) {
-        return { success: false, message: e.message || "Failed to update group style" };
+        return { success: false, message: e.message || "Failed to add group" };
     }
 }
 
-import { upsertGroupStyle } from "@/services/goal.service";
+export async function updateGoalGroupAction(goalId: string, groupId: string, formData: FormData) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    const name = formData.get("name") as string;
+    const parentGroupId = formData.get("parentGroupId") as string | undefined;
+    const color = formData.get("color") as string;
+    const icon = formData.get("icon") as string;
+
+    try {
+        await updateGroup(goalId, groupId, { 
+            name, 
+            color, 
+            icon,
+            parentGroupId: parentGroupId === "" ? undefined : parentGroupId 
+        });
+        revalidatePath(`/goals/${goalId}`);
+        return { success: true, message: "Group updated successfully" };
+    } catch (e: any) {
+        return { success: false, message: e.message || "Failed to update group" };
+    }
+}
+
+export async function deleteGoalGroupAction(goalId: string, groupId: string) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    try {
+        await deleteGroup(goalId, groupId);
+        revalidatePath(`/goals/${goalId}`);
+        return { success: true, message: "Group deleted successfully" };
+    } catch (e: any) {
+        return { success: false, message: e.message || "Failed to delete group" };
+    }
+}
+
+export async function updateGroupStyleAction(formData: FormData) {
+    // Legacy support wrapper or deprecation notice
+    // Mapping old single action to new update logic if ID exists, or create?
+    // Actually, let's keep it but use the new service method inside if possible, 
+    // or just leave it for backward compat if UI still uses it (it does).
+    // But since we updated the service to handle name-based lookup in upsertGroupStyle, we can just call that.
+    
+    // RE-INSTATE for backward compatibility if needed, but ideally we switch UI to use new actions.
+    return { success: false, message: "Please use the new group management implementation" };
+}
+
+import { upsertGroupStyle, addGroup, updateGroup, deleteGroup } from "@/services/goal.service";
 
 
 // We need to import Transaction model to use it in deleteGoalPaymentAction

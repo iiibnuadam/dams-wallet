@@ -1,10 +1,22 @@
 "use client";
 
 import { useDebts, useDeleteDebt } from "@/hooks/useDebts";
+import { toast } from "sonner";
 import { useWallets } from "@/hooks/useWallets";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit, ExternalLink, Calendar, Copy, ArrowUpRight, ArrowDownLeft, Wallet, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { DebtFormDialog } from "@/components/debt/DebtFormDialog";
 import { SettleDebtDialog } from "@/components/debt/SettleDebtDialog";
 import { format, isPast, isToday, addDays } from "date-fns";
@@ -18,21 +30,13 @@ export function DebtList() {
     const { mutateAsync: deleteDebt } = useDeleteDebt();
     const { data: wallets = [] } = useWallets("ALL"); // Fetch wallets for Settle Dialog
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this record?")) {
-             try {
-                await deleteDebt(id);
-             } catch (error) {
-                alert("Failed to delete");
-             }
-        }
-    };
+
 
     const copyReminder = (debt: any) => {
         const typeStr = debt.type === "LENT" ? "hutang kamu" : "hutang aku";
         const msg = `Halo ${debt.person}, mau ingetin ${typeStr} sebesar ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(debt.amount)} (${debt.description}). Boleh tolong dicek ya? makasih 🙏`;
         navigator.clipboard.writeText(msg);
-        alert("Reminder message copied to clipboard!");
+        toast.success("Reminder message copied to clipboard!");
     };
 
     // Calculate Stats
@@ -118,14 +122,41 @@ export function DebtList() {
                                 </Button>
                             } 
                         />
-                         <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(debt._id)}
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Debt Record?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Are you sure you want to delete this debt record? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                        onClick={async () => {
+                                            try {
+                                                await deleteDebt(debt._id);
+                                                toast.success("Debt record deleted");
+                                            } catch (error) {
+                                                toast.error("Failed to delete");
+                                            }
+                                        }}
+                                        className="bg-red-600 hover:bg-red-700"
+                                    >
+                                        Delete
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
 
                     <div className="flex gap-2">

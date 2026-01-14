@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -45,7 +46,7 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
             onOpenChange(false);
             if (onDeleteSuccess) onDeleteSuccess();
         } else {
-            alert(result.message);
+            toast.error(result.message);
         }
     };
 

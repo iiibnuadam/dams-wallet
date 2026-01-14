@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -99,9 +100,9 @@ export function ProfileDialog({ open, onOpenChange, trigger }: ProfileDialogProp
       // For now, revalidatePath in action handles data, but session might confuse "name" vs "username".
       // We only store "username" in session.user.name. The real name is not in session.
       // So no session update needed unless we start storing real name in session.
-      alert("Profile updated successfully");
+      toast.success("Profile updated successfully");
     } else {
-      alert(result.message);
+      toast.error(result.message);
     }
   }
 

@@ -70,7 +70,7 @@ export function Navbar() {
                                 clipPath: clipPath,
                             },
                             {
-                                duration: 500,
+                                duration: 1000,
                                 easing: "ease-in-out",
                                 pseudoElement: "::view-transition-new(root)",
                             }

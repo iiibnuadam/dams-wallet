@@ -1,12 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { RoutineListSkeleton } from "@/components/skeletons";
 import { getRoutinesAction } from "@/actions/routine"; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit, Loader2, Calendar, Repeat, ArrowRight, Wallet, ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
 import { deleteRoutineAction } from "@/actions/routine";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { RoutineFormDialog } from "@/components/routine/RoutineFormDialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -33,12 +45,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
         fetchRoutines();
     }, []);
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this routine? Future transactions will not be generated.")) {
-             await deleteRoutineAction(id);
-             setRoutines(prev => prev.filter(r => r._id !== id));
-        }
-    };
+
 
     const handleToggleStatus = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
@@ -51,7 +58,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
         const res = await updateRoutineAction(id, { status: newStatus });
         if (!res.success) {
             // Revert if failed
-            alert("Failed to update status");
+            toast.error("Failed to update status");
             fetchRoutines();
         }
     };
@@ -177,14 +184,37 @@ export function RoutineList({ wallets }: RoutineListProps) {
                                         </Button>
                                     } 
                                 />
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                    onClick={() => handleDelete(routine._id)}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Routine?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to delete this routine? Future transactions will not be generated.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction 
+                                                onClick={async () => {
+                                                    await deleteRoutineAction(routine._id);
+                                                    setRoutines(prev => prev.filter(r => r._id !== routine._id));
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </CardFooter>
                         </Card>
                      );

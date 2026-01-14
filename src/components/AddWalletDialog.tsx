@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -45,6 +48,8 @@ const formSchema = z.object({
 
 export function AddWalletDialog() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
   
   // Explicitly define the form values type to match schema
   const form = useForm<z.infer<typeof formSchema>>({
@@ -77,9 +82,13 @@ export function AddWalletDialog() {
     if (result.success) {
       setOpen(false);
       form.reset();
+      // Invalidate queries to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      // Also refresh router for Server Components if any
+      router.refresh();
     } else {
         // Handle error (toast usually)
-        alert(result.message);
+        toast.error(result.message);
     }
   }
 

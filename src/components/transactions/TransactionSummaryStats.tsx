@@ -11,7 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { getCategoryColor, getCategorySolidColor } from "@/lib/category-utils";
+import { getCategorySolidColor } from "@/lib/category-utils";
 import { cn } from "@/lib/utils";
 
 export function TransactionSummaryStats({ params }: { params: Record<string, any> }) {
@@ -54,27 +54,36 @@ export function TransactionSummaryStats({ params }: { params: Record<string, any
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {categories.map((cat: any, idx: number) => {
                     const percentage = totalValue > 0 ? (cat.value / totalValue) * 100 : 0;
-                    const solidColor = getCategorySolidColor(cat.name);
+                    
+                    // Logic to handle custom color vs fallback
+                    const isTailwindClass = cat.color?.startsWith("bg-");
+                    const fallbackColor = getCategorySolidColor(cat.name); // Fallback logic
                     
                     return (
-                        <div key={idx} className="relative h-8 w-full rounded-md bg-zinc-100 dark:bg-zinc-800/50 overflow-hidden">
+                        <div key={idx} className="relative h-9 w-full rounded-md bg-zinc-100 dark:bg-zinc-800/50 overflow-hidden flex items-center">
                             {/* Bar Overlay */}
                             <div 
-                                className={cn("absolute top-0 left-0 h-full transition-all opacity-80", solidColor)} 
+                                className={cn(
+                                    "absolute top-0 left-0 h-full transition-all opacity-20 dark:opacity-30",
+                                    isTailwindClass ? cat.color : fallbackColor
+                                )} 
                                 style={{ width: `${percentage}%` }}
                             />
                             
                             {/* Content Layer */}
-                            <div className="relative z-10 flex items-center justify-between px-3 h-full text-xs box-border">
-                                <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[55%] z-20 mix-blend-hard-light drop-shadow-sm">
-                                    {cat.name}
-                                </span>
-                                <div className="flex items-center gap-1.5 z-20">
-                                    <span className="font-bold text-zinc-900 dark:text-zinc-100 text-[11px] opacity-90 drop-shadow-sm">
+                            <div className="relative z-10 flex items-center justify-between px-3 w-full text-xs">
+                                <div className="flex items-center gap-2 truncate max-w-[65%]">
+                                     <span className="text-base">{cat.icon || (type === "INCOME" ? "💰" : "🏷️")}</span>
+                                     <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                        {cat.name}
+                                     </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[11px]">
                                          {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(cat.value)}
                                     </span>
-                                    <span className="text-[10px] text-zinc-700 dark:text-zinc-300 font-medium bg-white/30 dark:bg-black/30 px-1 rounded backdrop-blur-[1px]">
-                                        {percentage.toFixed(1)}%
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                                        {percentage.toFixed(0)}%
                                     </span>
                                 </div>
                             </div>

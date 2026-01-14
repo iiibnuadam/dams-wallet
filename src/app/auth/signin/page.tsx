@@ -100,34 +100,6 @@ export default function SignInPage() {
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Quick Access (Dev)
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              variant="outline"
-              disabled={loading}
-              onClick={() => handleSignIn(undefined, { u: "ADAM", p: "adam123" })}
-            >
-              ADAM
-            </Button>
-            <Button
-              variant="outline"
-              disabled={loading}
-              onClick={() => handleSignIn(undefined, { u: "SASTI", p: "sasti123" })}
-            >
-              SASTI
-            </Button>
-          </div>
         </CardContent>
         <CardFooter className="flex justify-center mt-4">
            <p className="text-xs text-muted-foreground text-center px-4">

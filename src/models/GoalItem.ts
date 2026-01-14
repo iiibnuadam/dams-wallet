@@ -2,7 +2,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IGoalItem extends Document {
   goalId: mongoose.Types.ObjectId;
-  groupName: string;
+  groupId?: mongoose.Types.ObjectId;
+  groupName?: string;
   name: string;
   estimatedAmount: number;
   createdAt: Date;
@@ -12,7 +13,8 @@ export interface IGoalItem extends Document {
 const GoalItemSchema: Schema = new Schema(
   {
     goalId: { type: Schema.Types.ObjectId, ref: "Goal", required: true },
-    groupName: { type: String, required: true },
+    groupId: { type: Schema.Types.ObjectId },
+    groupName: { type: String }, // Deprecated in favor of groupId, kept for legacy
     name: { type: String, required: true },
     estimatedAmount: { type: Number, required: true },
   },

@@ -41,7 +41,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
     };
 
     // Remove onChange and value from props to avoid overriding internal logic
-    const { onChange: _externalOnChange, value: _externalValue, ...safeProps } = props as any;
+    const { onChange: _externalOnChange, value: _externalValue, defaultValue: _externalDefaultValue, ...safeProps } = props as any;
 
     return (
       <Input

@@ -8,7 +8,7 @@ export interface IGoal extends Document {
   sharedWith: string[]; // Array of usernames
   color?: string;
   icon?: string;
-  groups?: { name: string; color?: string; icon?: string }[];
+  groups?: { _id: string; name: string; color?: string; icon?: string; parentGroupId?: string }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,7 +25,8 @@ const GoalSchema: Schema = new Schema(
     groups: [{
         name: { type: String, required: true },
         color: { type: String },
-        icon: { type: String }
+        icon: { type: String },
+        parentGroupId: { type: Schema.Types.ObjectId }
     }],
   },
   { timestamps: true }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { getPendingTransactionsAction, confirmTransactionAction, deleteTransactionAction } from "@/actions/routine";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,17 @@ import { Check, X, Clock, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { checkAndGenerateRoutinesAction } from "@/actions/routine";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function PendingTransactions() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,14 +49,14 @@ export function PendingTransactions() {
         const res = await confirmTransactionAction(id);
         if (res.success) {
             setTransactions(prev => prev.filter(t => t._id !== id));
+            toast.success("Transaction confirmed");
         } else {
-            alert(res.message);
+            toast.error(res.message);
         }
         setProcessingId(null);
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to skip/delete this transaction?")) return;
         setProcessingId(id);
         const res = await deleteTransactionAction(id);
         if (res.success) {
@@ -91,15 +103,35 @@ export function PendingTransactions() {
                             </span>
                             
                             <div className="flex gap-1">
-                                <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => handleDelete(t._id)}
-                                    disabled={!!processingId}
-                                >
-                                    <X className="w-4 h-4" />
-                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                            disabled={!!processingId}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Skip/Delete Transaction?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to skip or delete this pending transaction? This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction 
+                                                onClick={() => handleDelete(t._id)}
+                                                className="bg-red-600 hover:bg-red-700"
+                                            >
+                                                Skip/Delete
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                                 <Button 
                                     size="sm" 
                                     className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"

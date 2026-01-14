@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { CalendarIcon, FilterX, X, Search, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCategories } from "@/actions/category";
+import { getCategoriesAction } from "@/actions/category-actions";
 import { getGoalsAction } from "@/actions/goal";
 import { Badge } from "@/components/ui/badge";
 
@@ -51,15 +51,15 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
     const [goals, setGoals] = useState<any[]>([]);
 
     useEffect(() => {
-        async function fetchCats() {
-            const data = await getCategories();
+        const loadCats = async () => {
+            const data = await getCategoriesAction(); 
             setCategories(data);
-        }
+        };
         async function fetchGoals() {
             const data = await getGoalsAction();
             setGoals(data);
         }
-        fetchCats();
+        loadCats();
         fetchGoals();
     }, []);
 
@@ -187,7 +187,7 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
         activeFilters.push({ key: 'walletId', label: w ? w.name : "Wallet", value: walletId });
     }
     if (categoryId && categoryId !== "ALL") {
-        const c = categories.find(c => c.id === categoryId);
+        const c = categories.find(c => c._id === categoryId);
         activeFilters.push({ key: 'categoryId', label: c ? c.name : "Category", value: categoryId });
     }
     if (goalId && goalId !== "ALL") {
@@ -344,7 +344,7 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
                                         <SelectItem value="ALL">All Categories</SelectItem>
                                         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                         {categories.filter((c: any) => type === "ALL" || c.type === type).map((c: any) => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

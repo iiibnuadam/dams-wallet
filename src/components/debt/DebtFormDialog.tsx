@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -83,7 +84,7 @@ export function DebtFormDialog({ debt, trigger, open: controlledOpen, onOpenChan
           form.setValue("proofUrl", newBlob.url);
       } catch (error) {
           console.error("Upload failed:", error);
-          alert("Upload failed. Please check your connection or credentials.");
+          toast.error("Upload failed. Please check your connection or credentials.");
       } finally {
           setUploading(false);
       }
@@ -117,12 +118,13 @@ export function DebtFormDialog({ debt, trigger, open: controlledOpen, onOpenChan
             setOpen(false);
             form.reset();
             if (onSaved) onSaved();
+            toast.success("Record saved successfully");
         } else {
-            alert(res.message || "Failed to save record");
+            toast.error(res.message || "Failed to save record");
         }
     } catch (error: any) {
         setLoading(false);
-        alert(error.message || "Failed");
+        toast.error(error.message || "Failed");
     }
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -14,6 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Loader2, Pencil, Check } from "lucide-react";
 import { updateWallet, deleteWallet } from "@/actions/wallet";
 import { WalletType, WalletOwner } from "@/types/wallet";
@@ -85,7 +97,7 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
             <Input id="name" name="name" defaultValue={wallet.name} required />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
               <div className="grid gap-2">
                 <Label htmlFor="type">Type</Label>
                 <Select name="type" defaultValue={wallet.type} onValueChange={setSelectedType}>
@@ -101,21 +113,7 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="owner">Owner</Label>
-                <Select name="owner" defaultValue={wallet.owner}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(WalletOwner).map((owner) => (
-                      <SelectItem key={owner} value={owner}>
-                        {owner}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
           </div>
 
           <div className="grid gap-2">
@@ -199,29 +197,43 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
           )}
 
           <DialogFooter className="sm:justify-between gap-2">
-             <Button 
-                type="button" 
-                variant="destructive" 
-                onClick={async () => {
-                   if (confirm("Are you sure you want to delete this wallet? This action cannot be undone.")) {
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive">Delete Wallet</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete this wallet and remove its data from our servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
                        const result = await deleteWallet(wallet._id);
                        if (result.success) {
                            setOpen(false);
                            // Force redirect to home if we are on the wallet page, or refresh if on dashboard
                            window.location.href = "/"; 
                        } else {
-                           alert(result.message);
+                           toast.error(result.message);
                        }
-                   }
-                }}
-             >
-                Delete Wallet
-             </Button>
+                    }}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>
           </DialogFooter>
+
         </form>
     </ResponsiveDialog>
   );

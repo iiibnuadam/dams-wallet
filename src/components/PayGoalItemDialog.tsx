@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
-import { getCategories } from "@/actions/category";
+import { getCategoriesAction } from "@/actions/category-actions";
 import { TransactionType, PaymentPhase } from "@/types/transaction";
 import { toast } from "sonner";
 import { Banknote } from "lucide-react";
@@ -68,7 +68,7 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
 
         try {
             // 1. Resolve Category
-            const categories = await getCategories();
+            const categories = await getCategoriesAction();
             let targetCategory = categories.find((c: any) => c.name === goalName && c.type === TransactionType.EXPENSE);
             
             if (!targetCategory) {

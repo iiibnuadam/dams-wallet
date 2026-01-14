@@ -37,6 +37,7 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      family: 4, // Force IPv4 to avoid DNS ESERVFAIL errors
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {

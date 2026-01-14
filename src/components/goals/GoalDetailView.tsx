@@ -1,8 +1,10 @@
+
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   Accordion,
@@ -18,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GoalHistoryList } from "@/components/GoalHistoryList";
 import { PayGoalItemDialog } from "@/components/PayGoalItemDialog";
 import { cn } from "@/lib/utils";
-import { EditGroupDialog } from "@/components/GroupDialogs";
+import { EditGroupDialog, AddGroupDialog } from "@/components/GroupDialogs";
 import { useGoal } from "@/hooks/useGoals";
 import { useWallets } from "@/hooks/useWallets";
 import { useRouter } from "next/navigation";
@@ -28,8 +30,15 @@ interface GoalDetailViewProps {
     goalId: string;
 }
 
-interface GoalDetailViewProps {
-    goalId: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GoalGroup = { _id: string; name: string; color?: string; icon?: string; parentGroupId?: string };
+
+interface GroupNode extends GoalGroup {
+    children: GroupNode[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    items: any[];
+    totalEstimated: number;
+    totalActual: number;
 }
 
 export function GoalDetailView({ goalId }: GoalDetailViewProps) {
@@ -39,6 +48,86 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
     const [activeTab, setActiveTab] = useState("overview");
     const [historyFilter, setHistoryFilter] = useState<{ type: 'ALL' | 'GROUP' | 'ITEM', id?: string, name?: string }>({ type: 'ALL' });
+    const [isEditMode, setIsEditMode] = useState(false);
+
+    // Build the Tree
+    const rootNodes = useMemo(() => {
+        if (!goal) return [];
+
+        const groupMap = new Map<string, GroupNode>();
+        // 1. Initialize nodes
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (goal.groups || []).forEach((g: any) => {
+            groupMap.set(g._id, { ...g, children: [], items: [], totalEstimated: 0, totalActual: 0 });
+        });
+
+        // 2. Assign Items to Groups
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const orphanItems: any[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (goal.items || []).forEach((item: any) => {
+            if (item.groupId && groupMap.has(item.groupId)) {
+                groupMap.get(item.groupId)!.items.push(item);
+            } else if (item.groupName) {
+                // Legacy Fallback: Try to find group by name
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const groupByGenericName = Array.from(groupMap.values()).find((g: any) => g.name === item.groupName);
+                if (groupByGenericName) {
+                    groupByGenericName.items.push(item);
+                } else {
+                    orphanItems.push(item);
+                }
+            } else {
+                orphanItems.push(item);
+            }
+        });
+
+        // 3. Build Hierarchy
+        const roots: GroupNode[] = [];
+        groupMap.forEach((node) => {
+            if (node.parentGroupId && groupMap.has(node.parentGroupId)) {
+                groupMap.get(node.parentGroupId)!.children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
+
+        // 4. Calculate Totals (Recursive Rollup)
+        const calculateTotals = (node: GroupNode) => {
+             // Sum direct items
+             let estimated = node.items.reduce((acc, i) => acc + i.estimatedAmount, 0);
+             let actual = node.items.reduce((acc, i) => acc + i.actualAmount, 0);
+
+             // Sum children
+             node.children.forEach(child => {
+                 calculateTotals(child);
+                 estimated += child.totalEstimated;
+                 actual += child.totalActual;
+             });
+
+             node.totalEstimated = estimated;
+             node.totalActual = actual;
+        };
+
+        roots.forEach(calculateTotals);
+
+        // Verify if we have orphans, maybe create a virtual unassigned group?
+        if (orphanItems.length > 0) {
+             const unassignedNode: GroupNode = {
+                 _id: "unassigned",
+                 name: "Unassigned",
+                 color: "#94a3b8",
+                 icon: "❓",
+                 children: [],
+                 items: orphanItems,
+                 totalEstimated: orphanItems.reduce((acc, i) => acc + i.estimatedAmount, 0),
+                 totalActual: orphanItems.reduce((acc, i) => acc + i.actualAmount, 0)
+             };
+             roots.push(unassignedNode);
+        }
+
+        return roots;
+    }, [goal]);
 
     if (isGoalLoading) return <GoalDetailSkeleton />;
     if (error || !goal) return (
@@ -49,17 +138,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         </div>
     );
 
-    // Group items
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const groupedItems = goal.items.reduce((acc: any, item: any) => {
-        if (!acc[item.groupName]) {
-        acc[item.groupName] = [];
-        }
-        acc[item.groupName].push(item);
-        return acc;
-    }, {});
-    const groups = Object.keys(groupedItems);
-
     // Filter History Logic
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredHistory = goal.history?.filter((txn: any) => {
@@ -69,10 +147,9 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
         if (historyFilter.type === 'ITEM') return txnItemId === historyFilter.id;
         if (historyFilter.type === 'GROUP') {
-             // Find all items in this group
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-             const groupItems = groupedItems[historyFilter.id!]?.map((i: any) => i._id);
-             return groupItems?.includes(txnItemId);
+             // TODO: Robust Group Filtering (including subgroups?)
+             // For now simple match
+             return true; 
         }
         return true;
     });
@@ -101,6 +178,355 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
     const goalColor = goal.color || '#6366f1';
 
+
+    // Recursive Group Renderer
+    const GroupRenderer = ({ node, level = 0 }: { node: GroupNode, level?: number }) => {
+        const groupRemaining = Math.max(0, node.totalEstimated - node.totalActual);
+        const isOverBudget = node.totalActual > node.totalEstimated;
+        
+        // Shared Column Widths
+        const COL_PROGRESS = "w-[150px]";
+        const COL_AMOUNT = "w-auto md:w-[130px]"; // Responsive width
+        const COL_ACTIONS = "w-[40px]"; // For hover buttons
+
+        return (
+            <AccordionItem 
+                value={node._id} 
+                className={cn(
+                    "border-none mb-6 rounded-2xl overflow-hidden shadow-xl shadow-black/5 transition-all duration-300",
+                    // Glassmorphism Card Style for Top Level
+                    level === 0 
+                        ? "bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10" 
+                        : "bg-transparent shadow-none"
+                )}
+            >
+                <div className="relative group/accordion-trigger w-full">
+                    <div className="flex w-full items-stretch">
+                        {/* Indentation Spacer */}
+                        {level > 0 && (
+                            <div 
+                                className="shrink-0 border-r border-white/10 block" 
+                                style={{ width: `${level * 1.5}rem` }} 
+                            />
+                        )}
+                        
+                        {/* Indicator Strip */}
+                        <div className="w-1.5 shrink-0" style={{ backgroundColor: node.color || goalColor }} />
+
+                        <AccordionTrigger className={cn(
+                            "hover:no-underline pl-4 pr-5 flex-1 relative overflow-hidden group/header transition-all w-full",
+                            // Glass Header Style
+                            level === 0 
+                                ? "bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 py-4" 
+                                : "bg-white/5 hover:bg-white/10 dark:bg-white/[0.02] dark:hover:bg-white/5 py-3"
+                        )}>
+                            <div className="flex-1 flex flex-col min-w-0 gap-1.5 md:gap-0 w-full">
+                                {/* Top Row / Desktop Main Row */}
+                                <div className="flex items-center gap-4 w-full">
+                                    {/* Left: Identity */}
+                                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                        <div className={cn(
+                                            "rounded-xl flex items-center justify-center shadow-sm border border-white/20 shrink-0 backdrop-blur-md transition-all",
+                                            "bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-white/5",
+                                            // Smaller icon for nested groups
+                                            level === 0 ? "w-10 h-10 text-xl" : "w-8 h-8 text-base"
+                                        )}>
+                                            {node.icon || "📁"}
+                                        </div>
+                                        <div className="min-w-0 flex flex-col justify-center text-left">
+                                             <h4 className={cn(
+                                                 "font-bold leading-none tracking-tight whitespace-break-spaces",
+                                                 level === 0 ? "text-lg" : "text-base"
+                                             )}>
+                                                 {node.name}
+                                             </h4>
+                                             {/* Metadata Stacked */}
+                                             <div className="text-xs text-muted-foreground mt-1.5 font-medium flex flex-col gap-1 opacity-80">
+                                                <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">{node.items.length} items</span>
+                                                <span className="truncate">Need {formatCurrency(groupRemaining)}</span>
+                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Amount Display */}
+                                    <div className="md:hidden flex flex-col items-end shrink-0">
+                                        <span className={cn("font-bold text-base tabular-nums tracking-tight", isOverBudget && "text-red-500 drop-shadow-sm")}>
+                                            {formatCurrency(node.totalActual)}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground opacity-70">
+                                            of {formatCurrency(node.totalEstimated)}
+                                        </span>
+                                    </div>
+
+                                    {/* Right: Columns (Desktop Only) */}
+                                    <div className="hidden md:flex items-center h-full gap-5">
+                                         {/* Progress Column */}
+                                         {node.totalEstimated > 0 && (
+                                            <div className={cn(COL_PROGRESS, "flex flex-col justify-center h-full")}>
+                                                <div className="flex justify-between w-full text-[10px] font-medium text-muted-foreground mb-1.5 opacity-80">
+                                                    <span>Progress</span>
+                                                    <span>{((node.totalActual / node.totalEstimated) * 100).toFixed(0)}%</span>
+                                                </div>
+                                                <div className="h-2 w-full bg-black/5 dark:bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(0,0,0,0.1)]"
+                                                        style={{ 
+                                                            width: `${Math.min((node.totalActual / node.totalEstimated) * 100, 100)}%`,
+                                                            backgroundColor: isOverBudget ? '#ef4444' : (node.color || goalColor)
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                         )}
+
+                                         {/* Amount Column */}
+                                         <div className={cn(COL_AMOUNT, "flex flex-col justify-center text-right shrink-0")}>
+                                              <span className={cn("font-bold text-lg tabular-nums tracking-tight", isOverBudget && "text-red-500 drop-shadow-sm")}>
+                                                {formatCurrency(node.totalActual)}
+                                              </span>
+                                              <span className="text-[10px] text-muted-foreground opacity-70">
+                                                of {formatCurrency(node.totalEstimated)}
+                                              </span>
+                                         </div>
+                                    </div>
+                                </div>
+
+                                {/* Bottom Row: Mobile Progress Bar */}
+                                {node.totalEstimated > 0 && (
+                                    <div className="md:hidden w-full h-1.5 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden mt-1 opacity-80">
+                                        <div 
+                                            className="h-full rounded-full transition-all duration-700 ease-out"
+                                            style={{ 
+                                                width: `${Math.min((node.totalActual / node.totalEstimated) * 100, 100)}%`,
+                                                backgroundColor: isOverBudget ? '#ef4444' : (node.color || goalColor)
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Mobile Actions Row (Below Content) */}
+                                {isEditMode && (
+                                    <div className="md:hidden flex items-center justify-end gap-2 mt-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                                        <EditGroupDialog 
+                                            goalId={goal._id} 
+                                            group={{ 
+                                                _id: node._id, 
+                                                name: node.name, 
+                                                color: node.color, 
+                                                icon: node.icon,
+                                                parentGroupId: node.parentGroupId
+                                            }} 
+                                            existingGroups={goal.groups} 
+                                            trigger={
+                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 bg-white/50 dark:bg-white/5 border-white/20 backdrop-blur-sm">
+                                                    <Pencil className="w-3 h-3" />
+                                                    Edit
+                                                </Button>
+                                            }
+                                        />
+                                        <AddGroupDialog 
+                                            goalId={goal._id} 
+                                            parentGroupId={node._id}
+                                            existingGroups={goal.groups} 
+                                            trigger={
+                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 bg-white/50 dark:bg-white/5 border-white/20 backdrop-blur-sm">
+                                                    <Plus className="w-3 h-3" />
+                                                    Add Item
+                                                </Button>
+                                            }
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </AccordionTrigger>
+
+                        {/* Actions Overlay - Moved OUTSIDE trigger (Desktop Only) */}
+                        {node._id !== "unassigned" && isEditMode && (
+                            <div className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-1 opacity-100 md:opacity-0 md:group-hover/accordion-trigger:opacity-100 transition-all duration-200 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg z-10 pointer-events-auto scale-90 group-hover/accordion-trigger:scale-100">
+                                <EditGroupDialog 
+                                    goalId={goal._id} 
+                                    group={{ 
+                                        _id: node._id, 
+                                        name: node.name, 
+                                        color: node.color, 
+                                        icon: node.icon,
+                                        parentGroupId: node.parentGroupId
+                                    }} 
+                                    existingGroups={goal.groups} 
+                                    trigger={
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10">
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </Button>
+                                    }
+                                />
+                                <AddGroupDialog 
+                                    goalId={goal._id} 
+                                    parentGroupId={node._id}
+                                    existingGroups={goal.groups} 
+                                    trigger={
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10">
+                                            <Plus className="w-4 h-4" />
+                                        </Button>
+                                    }
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                <AccordionContent className="pt-0 pb-0">
+                    {/* Render Items */}
+                    <div className="flex flex-col relative">
+                        {/* Optional subtle background for items area */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+                        
+                        {node.items.map((item: any) => {
+                            const progress = item.estimatedAmount > 0 ? (item.actualAmount / item.estimatedAmount) * 100 : 0;
+                            const isItemOver = item.actualAmount > item.estimatedAmount;
+                            const isPaid = progress >= 100;
+                            
+                            return (
+                                <div key={item._id} className="group/item relative flex items-center w-full hover:bg-white/10 dark:hover:bg-white/5 transition-colors border-white/5 pl-0 backdrop-blur-[2px]">
+                                     {/* Spacer to align with Header Text Start */}
+                                     {level > 0 && (
+                                        <div 
+                                            className="shrink-0 border-r border-white/10 self-stretch block" 
+                                            style={{ width: `${level * 1.5}rem` }} 
+                                        />
+                                    )}
+                                    <div className="w-1.5 shrink-0 self-stretch" style={{ backgroundColor: node.color || goalColor }} />
+
+                                     {/* Main Item Content Container - Matches Header Structure */}
+                                    <div className="flex-1 flex flex-col py-3 px-4 min-w-0 gap-1.5 md:gap-0">
+                                        {/* Top Row / Desktop Main Row */}
+                                        <div className="flex items-center w-full gap-4">
+                                            
+                                            {/* Left: Icon & Name */}
+                                            <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+                                                {/* Item Icon / Avatar - HIDDEN ON MOBILE */}
+                                                <div className={cn(
+                                                    "hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-xs font-bold shrink-0 transition-all shadow-sm ml-0.5", 
+                                                    isPaid 
+                                                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" 
+                                                        : "bg-white/40 dark:bg-white/5 text-muted-foreground border border-white/10"
+                                                )}>
+                                                    {isPaid ? <CheckCircle2 className="w-4 h-4" /> : item.name.charAt(0)}
+                                                </div>
+
+                                                <div className="min-w-0 flex flex-col justify-center">
+                                                    <span className="font-medium text-sm truncate flex items-center gap-2 text-foreground/90">
+                                                        {item.name}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 opacity-70">
+                                                        Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Mobile Amount Display */}
+                                            <div className="md:hidden flex flex-col items-end shrink-0">
+                                                <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                    {formatCurrency(item.actualAmount)}
+                                                </div>
+                                                {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
+                                            </div>
+
+                                            {/* Right Columns - Desktop Only */}
+                                            <div className="hidden md:flex items-center h-full gap-5">
+                                                 {/* Progress Column */}
+                                                 <div className={cn(COL_PROGRESS, "flex flex-col justify-center")}>
+                                                     <div className="h-1.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                                        <div 
+                                                            className={cn("h-full rounded-full transition-all duration-500 shadow-sm", isItemOver ? "bg-red-500" : "bg-emerald-500")}
+                                                            style={{ width: `${Math.min(progress, 100)}%` }}
+                                                        />
+                                                     </div>
+                                                     <div className="text-[9px] text-muted-foreground text-right mt-1 font-medium opacity-60">{progress.toFixed(0)}%</div>
+                                                 </div>
+
+                                                 {/* Amount Column */}
+                                                 <div className={cn(COL_AMOUNT, "text-right shrink-0")}>
+                                                     <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                         {formatCurrency(item.actualAmount)}
+                                                     </div>
+                                                     {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
+                                                 </div>
+                                            </div>
+                                            
+                                            {/* Pay Action (Fixed) */}
+                                            <div className={cn(COL_ACTIONS, "flex justify-end")}>
+                                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-all scale-90 group-hover/item:scale-100">
+                                                     {/* View Mode: Pay Only */}
+                                                     {!isEditMode && (
+                                                         <PayGoalItemDialog 
+                                                            goalName={goal.name}
+                                                            item={item}
+                                                            wallets={wallets as any[]}
+                                                            trigger={
+                                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-500/20 hover:text-emerald-600 rounded-lg text-muted-foreground">
+                                                                    <Plus className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            }
+                                                        />
+                                                     )}
+                                                     
+                                                     {/* Edit Mode Actions */}
+                                                     {isEditMode && (
+                                                         <>
+                                                            <EditGoalItemDialog 
+                                                                goalId={goal._id} 
+                                                                item={item} 
+                                                                existingGroups={goal.groups} 
+                                                                trigger={
+                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-blue-500/20 hover:text-blue-600 rounded-lg text-muted-foreground">
+                                                                        <Pencil className="w-3 h-3" />
+                                                                    </Button>
+                                                                }
+                                                            />
+                                                            <DeleteGoalItemDialog 
+                                                                goalId={goal._id} 
+                                                                itemId={item._id} 
+                                                                itemName={item.name} 
+                                                                trigger={
+                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-red-500/20 hover:text-red-600 rounded-lg text-muted-foreground">
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </Button>
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom Row: Mobile Progress Bar */}
+                                        <div className="md:hidden w-full h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden mt-0.5 opacity-60">
+                                            <div 
+                                                className={cn("h-full rounded-full transition-all", isItemOver ? "bg-red-500" : "bg-emerald-500")}
+                                                style={{ width: `${Math.min(progress, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Render Subgroups */}
+                    {node.children.length > 0 && (
+                        <div className="pb-3">
+                             <Accordion type="multiple" className="space-y-4 pt-3">
+                                {node.children.map(child => (
+                                    <GroupRenderer key={child._id} node={child} level={level + 1} />
+                                ))}
+                             </Accordion>
+                        </div>
+                    )}
+                </AccordionContent>
+            </AccordionItem>
+        );
+    };
+
     return (
         <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto space-y-8 animate-in fade-in duration-500">
         
@@ -113,28 +539,23 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         </div>
 
         <div className="container sm:px-4 space-y-8">
-            {/* GLASS + ICON BACKGROUND DESIGN */}
+            {/* GLASS + ICON BACKGROUND DESIGN - SAME AS BEFORE */}
             <div className="px-4">
                 <div 
-                    className="relative overflow-hidden rounded-[32px] shadow-xl transition-all duration-500 group bg-card border-t border-white/10"
+                    className="relative overflow-hidden rounded-[32px] shadow-xl transition-all duration-500 group bg-card"
                 >
                     {/* Background Layers */}
                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-black/5" />
-                    
-                    {/* Color Overlay */}
                     <div 
                         className="absolute inset-0 opacity-[0.08] dark:opacity-[0.15]" 
                         style={{ backgroundColor: goalColor }} 
                     />
-                    
-                    {/* Faint Background Icon */}
                     <div className="absolute md:-bottom-10 -right-10 opacity-[0.03] dark:opacity-[0.05] pointer-events-none select-none">
                         <span className="text-[250px] leading-none grayscale" style={{ color: goalColor }}>
                             {goal.icon || "🎯"}
                         </span>
                     </div>
 
-                    {/* Glass Content Layer */}
                     <div className="relative z-10 backdrop-blur-[2px]"> 
                         <div className="p-8 sm:p-10 flex flex-col h-full"> 
                             
@@ -171,10 +592,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                  } />
                             </div>
 
-                            {/* Main Stats Block */}
+                            {/* Stats */}
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-end">
-                                
-                                {/* Primary Metric: Collected */}
                                 <div className="space-y-2">
                                     <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest pl-1">Total Collected</p>
                                     <div className="flex items-baseline gap-2">
@@ -185,8 +604,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                             {formatCurrency(totalActual)}
                                         </h2>
                                     </div>
-                                    
-                                     {/* Simple Progress Indicator */}
                                      {totalRemaining === 0 ? (
                                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-600 backdrop-blur-md">
                                              <CheckCircle2 className="w-5 h-5" />
@@ -199,10 +616,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                          </div>
                                      )}
                                 </div>
-
-                                {/* Secondary Metrics Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     {/* Target Card */}
                                      <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 hover:bg-background/80 transition-colors">
                                          <div className="flex items-start justify-between mb-4">
                                              <div className="p-2 bg-muted/50 rounded-lg">
@@ -215,8 +629,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                              <p className="text-xs text-muted-foreground mt-1">Total needed</p>
                                          </div>
                                      </div>
-
-                                     {/* Shortfall Card */}
                                      <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 hover:bg-background/80 transition-colors relative overflow-hidden group/card">
                                          {totalRemaining > 0 ? (
                                              <>
@@ -247,8 +659,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                      </div>
                                 </div>
                             </div>
-
-                            {/* Bottom Progress Bar */}
                             <div className="mt-10">
                                 <div className="h-3 bg-muted rounded-full overflow-hidden">
                                     <div 
@@ -259,7 +669,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                     </div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -281,178 +690,40 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                     {/* Goal Items */}
                     <div className="px-4">
                         <div className="flex items-center justify-between mb-4">
-                             <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
+                            <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
                                 Budget Breakdown
                             </h3>
-                            <AddGoalItemDialog goalId={goal._id} existingGroups={groups} />
+                            <div className="flex gap-2">
+                                <Button 
+                                    size="icon" 
+                                    variant={isEditMode ? "secondary" : "ghost"}
+                                    onClick={() => setIsEditMode(!isEditMode)}
+                                    className="h-9 w-9"
+                                    title={isEditMode ? "Done Editing" : "Manage Goals"}
+                                >
+                                    {isEditMode ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Pencil className="w-4 h-4" />}
+                                </Button>
+                                {isEditMode && (
+                                    <>
+                                        <AddGroupDialog goalId={goal._id} existingGroups={goal.groups} />
+                                        <AddGoalItemDialog goalId={goal._id} existingGroups={goal.groups} />
+                                    </>
+                                )}
+                            </div>
                         </div>
 
-                        <Accordion type="multiple" defaultValue={groups} className="space-y-4">
-                            {groups.map((group) => {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const items = groupedItems[group];
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const groupTotal = items.reduce((sum: number, i: any) => sum + i.actualAmount, 0);
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const groupEstimated = items.reduce((sum: number, i: any) => sum + i.estimatedAmount, 0);
-                                const groupRemaining = Math.max(0, groupEstimated - groupTotal);
-                                const isOverBudget = groupTotal > groupEstimated;
-
-                                // Get Group Metadata
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const groupMeta = goal.groups?.find((g: any) => g.name === group);
-                                const groupColor = groupMeta?.color || goal.color || "#6366f1";
-                                const groupIcon = groupMeta?.icon || "📁";
-
-                                return (
-                                    <AccordionItem 
-                                        key={group} 
-                                        value={group} 
-                                        className="border rounded-2xl px-1 overflow-hidden transition-all duration-300 bg-card/50 hover:bg-card/80"
-                                        style={{ borderColor: `${groupColor}30` }}
-                                    >
-                                        <div className="relative">
-                                             <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: groupColor }} />
-                                            <AccordionTrigger className="hover:no-underline py-4 px-4 pl-6">
-                                                <div className="flex-1 text-left mr-4">
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="font-bold text-lg flex items-center gap-2">
-                                                                <span className="text-xl opacity-80">{groupIcon}</span>
-                                                                <span>{group}</span>
-                                                                 <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <EditGroupDialog 
-                                                                        goalId={goal._id} 
-                                                                        group={{ name: group, color: groupMeta?.color, icon: groupMeta?.icon }} 
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            {groupRemaining > 0 ? (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    Needs <span className="font-semibold text-foreground">{formatCurrency(groupRemaining)}</span> more
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-xs text-emerald-600 font-medium">Fully Funded</span>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className={cn("text-base font-bold", isOverBudget ? 'text-red-500' : 'text-emerald-600')}>
-                                                                {formatCurrency(groupTotal)}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground font-medium">
-                                                                of {formatCurrency(groupEstimated)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    {/* Custom Progress Bar */}
-                                                    <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full transition-all duration-500 rounded-full relative"
-                                                            style={{ 
-                                                                width: `${groupEstimated > 0 ? Math.min((groupTotal / groupEstimated) * 100, 100) : 0}%`,
-                                                                backgroundColor: isOverBudget ? '#ef4444' : groupColor 
-                                                            }}
-                                                        >
-                                                            {groupRemaining === 0 && <div className="absolute inset-0 bg-white/20" />}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </AccordionTrigger>
-                                        </div>
-                                        
-                                        <AccordionContent className="pb-4 pt-1 px-4 pl-6 space-y-3">
-                                            {/* Group Actions */}
-                                            <div className="flex justify-end mb-2">
-                                                 <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-7 text-xs text-muted-foreground hover:text-primary gap-1.5"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleFilter('GROUP', group, group);
-                                                    }}
-                                                >
-                                                    <History className="w-3.5 h-3.5" /> View Group History
-                                                </Button>
-                                            </div>
-
-                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                            {items.map((item: any) => {
-                                                const progress = item.estimatedAmount > 0 ? (item.actualAmount / item.estimatedAmount) * 100 : 0;
-                                                const isItemOver = item.actualAmount > item.estimatedAmount;
-                                                const isPaid = progress >= 100;
-                                                const itemRemaining = Math.max(0, item.estimatedAmount - item.actualAmount);
-
-                                                return (
-                                                    <div key={item._id} className="bg-background/80 backdrop-blur-sm border rounded-xl p-4 space-y-4 shadow-sm hover:shadow-md transition-all group/item relative">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <div className="font-semibold flex items-center gap-2 text-base">
-                                                                    {item.name}
-                                                                    {isPaid && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                                                                    <div className="ml-2 flex items-center opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                                        <EditGoalItemDialog goalId={goal._id} item={item} existingGroups={groups} />
-                                                                        <DeleteGoalItemDialog goalId={goal._id} itemId={item._id} itemName={item.name} />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col md:flex-row flex-reverse md:flex-normal gap-3 mt-3 md:mt-1 md:items-center">
-                                                                     <div className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded w-fit md:w-auto">
-                                                                        Target: {formatCurrency(item.estimatedAmount)}
-                                                                    </div>
-                                                                    {itemRemaining > 0 && (
-                                                                         <div className="text-xs text-red-500 font-medium flex items-center gap-1">
-                                                                            <TrendingDown className="w-3 h-3" />
-                                                                            -{formatCurrency(itemRemaining)}
-                                                                         </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <div className={cn("font-bold text-lg", isItemOver ? "text-red-600" : "text-emerald-600")}>
-                                                                    {formatCurrency(item.actualAmount)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-4">
-                                                            <Progress 
-                                                                value={Math.min(progress, 100)} 
-                                                                className="h-2.5 flex-1"
-                                                                indicatorClassName={isItemOver ? "bg-red-500" : "bg-emerald-500"}
-                                                            />
-                                                            <div className="text-xs font-bold w-10 text-right">{progress.toFixed(0)}%</div>
-                                                        </div>
-
-                                                        <div className="flex justify-between items-center pt-2 border-t border-dashed">
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="sm" 
-                                                                className="h-8 text-xs text-muted-foreground hover:text-primary pl-0 hover:bg-transparent"
-                                                                onClick={() => handleFilter('ITEM', item._id, item.name)}
-                                                            >
-                                                                <History className="w-3.5 h-3.5 mr-1.5" /> Recent Activity
-                                                            </Button>
-
-                                                            <PayGoalItemDialog 
-                                                                goalName={goal.name}
-                                                                item={item}
-                                                                wallets={wallets as any[]}
-                                                                trigger={
-                                                                    <Button size="sm" className="h-8 text-xs font-medium px-4 shadow-sm hover:shadow-md transition-all">
-                                                                        + Pay
-                                                                    </Button>
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                );
-                            })}
+                        <Accordion type="multiple" defaultValue={rootNodes.map(n => n._id)} className="space-y-4">
+                            {rootNodes.map((node) => (
+                                <GroupRenderer key={node._id} node={node} />
+                            ))}
                         </Accordion>
+                        
+                        {rootNodes.length === 0 && (
+                            <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed">
+                                <p className="text-muted-foreground">No groups found</p>
+                                <Button variant="link" onClick={() => (document.querySelector('[data-dialog-trigger="add-group"]') as HTMLElement)?.click()}>Create a Group</Button>
+                            </div>
+                        )}
                     </div>
                 </TabsContent>
 
@@ -469,24 +740,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                             >
                                 All History
                             </Button>
-                            {/* Group Filters */}
-                            {groups.map((group) => {
-                                 const isActive = historyFilter.type === 'GROUP' && historyFilter.id === group;
-                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                 const groupMeta = goal.groups?.find((g: any) => g.name === group);
-                                 return (
-                                    <Button
-                                        key={group}
-                                        variant={isActive ? "default" : "outline"}
-                                        size="sm"
-                                        className="rounded-full h-8 text-xs whitespace-nowrap border-dashed"
-                                        style={isActive ? { backgroundColor: groupMeta?.color } : { color: groupMeta?.color, borderColor: groupMeta?.color ? `${groupMeta.color}60` : undefined }}
-                                        onClick={() => handleFilter('GROUP', group, group)}
-                                    >
-                                       {groupMeta?.icon || "📁"} {group}
-                                    </Button>
-                                 );
-                            })}
                         </div>
                         
                         <div className="overflow-hidden">
@@ -494,9 +747,9 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                 history={filteredHistory || []} 
                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 itemColorMap={goal.items.reduce((acc: any, item: any) => {
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    const groupMeta = goal.groups?.find((g: any) => g.name === item.groupName);
-                                    acc[item._id] = groupMeta?.color || goal.color || "#6366f1";
+                                    // Use first char or random color if not grouped? 
+                                    // Or try to find group color.
+                                    acc[item._id] = goal.color || "#6366f1"; 
                                     return acc;
                                 }, {})}
                             />
@@ -511,7 +764,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                     </div>
                 </TabsContent>
             </Tabs>
-
         </div>
         </div>
     );

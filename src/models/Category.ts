@@ -1,28 +1,24 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { CategoryType, ICategory as ICategoryBase } from "@/types/category";
 
-export enum CategoryType {
-  INCOME = "INCOME",
-  EXPENSE = "EXPENSE",
-  TRANSFER = "TRANSFER",
-}
+export { CategoryType }; // Re-export for convenience if needed by SERVER files
 
-export interface ICategory extends Document {
-  name: string;
-  type: CategoryType;
-  flexibility: "FIXED" | "VARIABLE";
-  isDeleted: boolean;
-}
+export interface ICategoryDocument extends Omit<ICategoryBase, "_id">, Document {}
 
 const CategorySchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     type: { type: String, enum: Object.values(CategoryType), required: true },
     flexibility: { type: String, enum: ["FIXED", "VARIABLE"], default: "VARIABLE" },
+    icon: { type: String }, // Lucide icon name or Emoji
+    color: { type: String }, // Hex or Tailwind class
+    group: { type: String }, // Grouping like "Housing", "Transport"
+    bucket: { type: String, enum: ["NEEDS", "WANTS", "SAVINGS"] }, // 50/30/20 Rule
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-const Category: Model<ICategory> = mongoose.models.Category || mongoose.model<ICategory>("Category", CategorySchema);
+const Category: Model<ICategoryDocument> = mongoose.models.Category || mongoose.model<ICategoryDocument>("Category", CategorySchema);
 
 export default Category;

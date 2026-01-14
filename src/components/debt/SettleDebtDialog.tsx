@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,12 +41,13 @@ export function SettleDebtDialog({ debt, trigger, onSettled, wallets }: SettleDe
         if (res.success) {
           setOpen(false);
           if (onSettled) onSettled();
+          toast.success("Debt settled successfully");
         } else {
-          alert(res.message || "Failed to settle debt");
+          toast.error(res.message || "Failed to settle debt");
         }
     } catch (e: any) {
         setLoading(false);
-        alert(e.message || "Failed");
+        toast.error(e.message || "Failed");
     }
   };
 

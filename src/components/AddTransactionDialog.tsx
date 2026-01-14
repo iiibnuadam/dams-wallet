@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { DialogFooter } from "@/components/ui/dialog"; // Footer might still be needed if used explicitly inside form?
 // Wait, DialogFooter was inside Form in my replacement? Yes.
@@ -35,7 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { TransactionType } from "@/types/transaction"; 
 
 import { createTransaction } from "@/actions/transaction";
-import { getCategories } from "@/actions/category"; // Import category action
+import { getCategoriesAction } from "@/actions/category-actions";
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -115,7 +116,7 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-     getCategories().then(setCategories);
+      getCategoriesAction().then(setCategories);
      // Set default date on client side only
      form.setValue("date", new Date().toISOString().split('T')[0]);
   }, []);
@@ -190,9 +191,10 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
           targetWallet: "",
           date: new Date().toISOString().split('T')[0],
       });
+      toast.success("Transaction added");
     } else {
       console.log(result)
-        alert(result.message);
+        toast.error(result.message);
     }
   }
 

@@ -9,14 +9,22 @@ export async function createGoal(data: Partial<IGoal>) {
   return JSON.parse(JSON.stringify(goal));
 }
 
-export async function createGoalItem(data: Partial<IGoalItem>) {
+export async function createGoalItem(data: Partial<IGoalItem> & { groupId?: string }) {
   await dbConnect();
+  if (data.groupId && typeof data.groupId === 'string') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data.groupId = new mongoose.Types.ObjectId(data.groupId) as any;
+  }
   const item = await GoalItem.create(data);
   return JSON.parse(JSON.stringify(item));
 }
 
-export async function updateGoalItem(id: string, data: Partial<IGoalItem>) {
+export async function updateGoalItem(id: string, data: Partial<IGoalItem> & { groupId?: string }) {
   await dbConnect();
+  if (data.groupId && typeof data.groupId === 'string') {
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data.groupId = new mongoose.Types.ObjectId(data.groupId) as any;
+  }
   const item = await GoalItem.findByIdAndUpdate(id, data, { new: true });
   return JSON.parse(JSON.stringify(item));
 }
@@ -200,33 +208,83 @@ export const getGoalDetails = cache(async (goalId: string) => {
   };
 });
 
-export async function upsertGroupStyle(goalId: string, groupData: { name: string, color?: string, icon?: string }) {
+export async function addGroup(goalId: string, groupData: { name: string, parentGroupId?: string, color?: string, icon?: string }) {
     await dbConnect();
-    
-    // Check if group exists in metadata
     const goal = await Goal.findById(goalId);
     if (!goal) throw new Error("Goal not found");
 
-    // Initialize groups array if it doesn't exist
-    if (!goal.groups) {
-        goal.groups = [];
-    }
-
-    const existingIndex = goal.groups.findIndex((g: any) => g.name === groupData.name);
+    if (!goal.groups) goal.groups = [];
     
-    if (existingIndex > -1) {
-        // Update existing group style directly
-        // Mongoose array mutation
-        goal.groups[existingIndex].color = groupData.color;
-        goal.groups[existingIndex].icon = groupData.icon;
-    } else {
-        // Add new group style
-        goal.groups.push(groupData);
-    }
-    
-    // Mark the path as modified to ensure Mongoose saves the mixed/array change if needed
-    goal.markModified('groups');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    goal.groups.push(groupData as any);
     
     await goal.save();
     return JSON.parse(JSON.stringify(goal));
+}
+
+export async function updateGroup(goalId: string, groupId: string, groupData: { name?: string, color?: string, icon?: string, parentGroupId?: string }) {
+    await dbConnect();
+    
+    const goal = await Goal.findById(goalId);
+    if (!goal) throw new Error("Goal not found");
+
+    if (!goal.groups) return { success: false, message: "No groups found" };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const group = (goal.groups as any).id(groupId);
+    if (!group) throw new Error("Group not found");
+
+    if (groupData.name) group.name = groupData.name;
+    if (groupData.color) group.color = groupData.color;
+    if (groupData.icon) group.icon = groupData.icon;
+    // Allow moving groups
+    if (groupData.parentGroupId !== undefined) {
+         if (groupData.parentGroupId === "ROOT") {
+             group.parentGroupId = undefined;
+         } else {
+             // Validate parent exists and is not self (circular check needed theoretically but skipping for now)
+             group.parentGroupId = groupData.parentGroupId;
+         }
+    }
+
+    await goal.save();
+    return JSON.parse(JSON.stringify(goal));
+}
+
+export async function deleteGroup(goalId: string, groupId: string) {
+    await dbConnect();
+    const goal = await Goal.findById(goalId);
+    if (!goal) throw new Error("Goal not found");
+
+    // Check for items or subgroups
+    // For now, allow force delete or just pull
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (goal.groups) {
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (goal.groups as any).pull({ _id: groupId });
+    }
+    
+    await goal.save();
+    
+    // Cleanup items?
+    // goalItems.updateMany({ groupId: groupId }, { $unset: { groupId: 1 } })
+    
+    return JSON.parse(JSON.stringify(goal));
+}
+
+// Deprecated but kept for compatibility until refactor complete
+export async function upsertGroupStyle(goalId: string, groupData: { name: string, color?: string, icon?: string }) {
+    // Forward to legacy behavior or mapping
+    // This was name-based.
+    await dbConnect();
+    const goal = await Goal.findById(goalId);
+    if (!goal) throw new Error("Goal not found");
+    
+    // Find group by name
+    const existingGroup = goal.groups?.find((g: any) => g.name === groupData.name);
+    if (existingGroup) {
+        return updateGroup(goalId, existingGroup._id.toString(), groupData);
+    } else {
+        return addGroup(goalId, groupData);
+    }
 }

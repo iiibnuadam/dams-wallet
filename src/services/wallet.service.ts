@@ -95,6 +95,7 @@ export async function getWallets(owner?: string) {
   return wallets.map(wallet => ({
       ...wallet,
       _id: wallet._id.toString(),
+      ownerDetails: undefined, // Explicitly remove ownerDetails to prevent leak
       owner: wallet.owner?.toString(),
       ownerName: wallet.ownerDetails?.[0]?.name || "Unknown",
       liabilityDetails: wallet.liabilityDetails ? {
@@ -171,6 +172,7 @@ export async function getWalletById(id: string) {
           ...wallet,
           _id: wallet._id.toString(),
           owner: wallet.owner?.toString(),
+          ownerDetails: undefined, // Leak prevention
           liabilityDetails: wallet.liabilityDetails ? {
             ...wallet.liabilityDetails,
             startDate: wallet.liabilityDetails.startDate ? new Date(wallet.liabilityDetails.startDate).toISOString() : undefined

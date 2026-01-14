@@ -14,6 +14,12 @@ const WalletSchema = z.object({
   type: z.nativeEnum(WalletType),
   initialBalance: z.coerce.number().default(0),
   color: z.string().optional().default("BLUE"),
+  // Optional Fields
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountHolder: z.string().optional(),
+  liabilityStartDate: z.string().optional(),
+  liabilityTenor: z.coerce.number().optional(),
 });
 
 export async function createWallet(prevState: unknown, formData: FormData) {
@@ -35,17 +41,44 @@ export async function createWallet(prevState: unknown, formData: FormData) {
       type: formData.get("type"),
       initialBalance: initialBalanceClean,
       color: formData.get("color"),
+      bankName: formData.get("bankName") || undefined,
+      accountNumber: formData.get("accountNumber") || undefined,
+      accountHolder: formData.get("accountHolder") || undefined,
+      liabilityStartDate: formData.get("liabilityStartDate") || undefined,
+      liabilityTenor: formData.get("liabilityTenor") || undefined,
     };
 
     const validatedData = WalletSchema.parse(rawData);
 
     await dbConnect();
+    
+    // Construct DB Object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createPayload: any = {
+        name: validatedData.name,
+        type: validatedData.type,
+        initialBalance: validatedData.initialBalance,
+        color: validatedData.color,
+        owner,
+        isDeleted: false,
+    };
 
-    await Wallet.create({
-      ...validatedData,
-      owner,
-      isDeleted: false,
-    });
+    if (validatedData.type === WalletType.BANK) {
+        createPayload.bankDetails = {
+            bankName: validatedData.bankName,
+            accountNumber: validatedData.accountNumber,
+            accountHolder: validatedData.accountHolder,
+        };
+    }
+
+    if (validatedData.type === WalletType.LIABILITY) {
+        createPayload.liabilityDetails = {
+            startDate: validatedData.liabilityStartDate ? new Date(validatedData.liabilityStartDate) : undefined,
+            tenorMonths: validatedData.liabilityTenor
+        };
+    }
+
+    await Wallet.create(createPayload);
 
     revalidatePath("/");
     return { message: "Wallet created successfully", success: true };
@@ -61,15 +94,11 @@ export async function updateWallet(id: string, prevState: unknown, formData: For
     return { success: false, message: "Unauthorized" };
   }
 
-  // Reuse Schema but allow optional fields if we wanted partial updates, 
-  // but for edit form we usually send everything. 
-  // However, Owner is not in the create schema. We should probably expand schema or make a new one.
-  // For simplicity, let's parse raw data here or make an extended schema.
-  
+  // Update Schema - removed owner update support to prevent ObjectId errors
+  // Ownership transfer should be a separate, dedicated feature if needed.
   const UpdateWalletSchema = z.object({
     name: z.string().min(1, "Name is required"),
     type: z.nativeEnum(WalletType),
-    owner: z.nativeEnum(WalletOwner),
     initialBalance: z.coerce.number(),
     color: z.string().optional(),
     liabilityStartDate: z.string().optional(),
@@ -85,7 +114,6 @@ export async function updateWallet(id: string, prevState: unknown, formData: For
   const rawData = {
     name: formData.get("name"),
     type: formData.get("type"),
-    owner: formData.get("owner"),
     initialBalance: initialBalanceClean,
     color: formData.get("color"),
     liabilityStartDate: formData.get("liabilityStartDate") || undefined,
@@ -111,9 +139,9 @@ export async function updateWallet(id: string, prevState: unknown, formData: For
       const updateData: any = {
           name: data.name,
           type: data.type,
-          owner: data.owner,
           initialBalance: data.initialBalance,
           color: data.color || "BLUE",
+          // owner update removed safely
       };
 
       if (data.type === WalletType.LIABILITY) {

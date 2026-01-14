@@ -43,17 +43,21 @@ export function TransactionsView() {
                         </div>
                         
                         {/* User Filter Controls */}
+                        {/* User Filter Controls - Unifying with Budget View logic */}
                         <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg self-start sm:self-auto">
-                            {["ME", "OTHERS", "ALL"].map((f) => {
-                                    const isActive = (params.userFilter || "ME") === f;
+                            {["ADAM", "SASTI", "ALL"].map((v) => {
+                                    const currentView = searchParams.get("view") || "ADAM"; // Default to ADAM (Me)
+                                    const isActive = currentView === v;
+                                    
                                     // Construct new query params string
                                     const newParams = new URLSearchParams(searchParams.toString());
-                                    newParams.set("userFilter", f);
+                                    newParams.set("view", v);
+                                    newParams.delete("userFilter"); // Cleanup legacy
                                     newParams.set("page", "1");
                                     
                                     return (
                                     <Link 
-                                        key={f}
+                                        key={v}
                                         href={`/transactions?${newParams.toString()}`}
                                         className={cn(
                                             "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
@@ -62,9 +66,9 @@ export function TransactionsView() {
                                         replace={true}
                                         scroll={false} 
                                     >
-                                        {f === "ME" && <User className="w-3 h-3" />}
-                                        {f === "OTHERS" && <Users className="w-3 h-3" />}
-                                        {f === "ME" ? "My Activity" : f === "OTHERS" ? "Partner" : "All"}
+                                        {v === "ADAM" && <User className="w-3 h-3" />}
+                                        {v === "SASTI" && <Users className="w-3 h-3" />}
+                                        {v === "ADAM" ? "My Activity" : v === "SASTI" ? "Partner" : "All"}
                                     </Link>
                                     );
                             })}

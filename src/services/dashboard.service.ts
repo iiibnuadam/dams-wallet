@@ -165,7 +165,9 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
                   { $project: { 
                       _id: 0,
                       name: { $ifNull: [{ $arrayElemAt: ["$catDetails.name", 0] }, { $cond: ["$isTransfer", "Transfer In", "Uncategorized"] }] }, 
-                      value: 1 
+                      value: 1,
+                      icon: { $arrayElemAt: ["$catDetails.icon", 0] },
+                      color: { $arrayElemAt: ["$catDetails.color", 0] }
                   }},
                   { $sort: { value: -1 } }
               ],
@@ -190,7 +192,9 @@ export async function getDashboardData(owner?: string, searchParams?: any) {
                   { $project: { 
                       _id: 0,
                       name: { $ifNull: [{ $arrayElemAt: ["$catDetails.name", 0] }, { $cond: ["$isTransfer", "Transfer Out", "Uncategorized"] }] }, 
-                      value: 1 
+                      value: 1,
+                      icon: { $arrayElemAt: ["$catDetails.icon", 0] },
+                      color: { $arrayElemAt: ["$catDetails.color", 0] }
                   }},
                   { $sort: { value: -1 } }
               ],
@@ -517,7 +521,13 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
               const cat = categories.find((c: any) => c._id.toString() === key);
               const name = cat?.name || (key === "Transfer Out" ? "Transfer Out" : 
                                         key === "Transfer In" ? "Transfer In" : "Uncategorized");
-              stats.push({ name, value: val });
+              // Using actual category icon/color if available
+              stats.push({ 
+                  name, 
+                  value: val,
+                  icon: cat?.icon,
+                  color: cat?.color
+              });
           });
       }
       return stats.sort((a, b) => b.value - a.value);
