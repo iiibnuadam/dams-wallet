@@ -9,13 +9,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view");
     // Convert all search params to object
+    // Convert all search params to object
     const params = Object.fromEntries(searchParams.entries());
 
+    console.log("[DashboardAPI] Fetching data for view:", view || "ALL");
     const data = await getDashboardData(view || "ALL", params);
+    console.log("[DashboardAPI] Data fetch success");
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Dashboard API Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("[DashboardAPI] Critical Error:", error);
+    return NextResponse.json({ error: "Internal Server Error", details: String(error) }, { status: 500 });
   }
 }

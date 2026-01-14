@@ -15,16 +15,19 @@ export async function GET(request: Request) {
     // Service logic: `currentUser` param is used for "ME/OTHERS" filter.
     // We should probably rely on session for security.
     if (session?.user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
         params.currentUser = (session.user as any).id;
     }
 
+    console.log("[TransactionsAPI] Fetching transactions with params:", JSON.stringify(params));
     const data = await getTransactions(params);
+    console.log("[TransactionsAPI] Data fetch success, count:", data.transactions?.length);
+
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching transactions:", error);
+    console.error("[TransactionsAPI] Critical Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch transactions" },
+      { error: "Failed to fetch transactions", details: String(error) },
       { status: 500 }
     );
   }
