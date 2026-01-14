@@ -2,6 +2,8 @@
 
 import { CategoryService } from "@/services/category.service";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function getCategoriesAction(type?: string) {
   try {
@@ -14,8 +16,17 @@ export async function getCategoriesAction(type?: string) {
 }
 
 export async function createCategoryAction(data: any) {
+  const session = await getServerSession(authOptions);
+  
   try {
     const category = await CategoryService.createCategory(data);
+    
+    // Auto-Sync to Budget if User is logged in
+    if ((session?.user as any)?.id) {
+        const { BudgetService } = await import("@/services/budget.service");
+        await BudgetService.syncNewCategoryGroup((session!.user as any).id, category);
+    }
+
     revalidatePath("/categories");
     revalidatePath("/budget"); 
     revalidatePath("/transactions");

@@ -13,6 +13,7 @@ export interface IBudgetGroupItem {
   icon: string;
   color: string;
   items: IBudgetItemSub[];
+  targetGroup?: string; // For auto-sync/simple mode
 }
 
 export interface IMonthlyBudget extends Document {

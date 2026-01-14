@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { getCategoriesAction } from "@/actions/category-actions";
 import { getGoalsAction } from "@/actions/goal";
 import { Badge } from "@/components/ui/badge";
+import { CategoryCombobox } from "@/components/ui/category-combobox";
 
 interface TransactionFiltersProps {
     wallets: { _id: string; name: string }[];
@@ -335,19 +336,18 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
                                 </div>
                             )}
 
-                             {/* Category Filter (Self Contained) */}
+                            {/* Category Filter (Self Contained) */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Category</label>
-                                <Select value={categoryId} onValueChange={setCategoryId}>
-                                    <SelectTrigger className="h-9 text-xs w-full"><SelectValue placeholder="Category" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ALL">All Categories</SelectItem>
-                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                        {categories.filter((c: any) => type === "ALL" || c.type === type).map((c: any) => (
-                                            <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <CategoryCombobox
+                                    categories={[
+                                        { _id: "ALL", name: "All Categories" },
+                                        ...categories.filter((c: any) => type === "ALL" || c.type === type)
+                                    ]}
+                                    value={categoryId}
+                                    onChange={setCategoryId}
+                                    placeholder="All Categories"
+                                />
                             </div>
                             
                             {/* Goal Filter (Self Contained) */}

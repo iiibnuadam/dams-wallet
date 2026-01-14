@@ -12,6 +12,7 @@ import { Loader2, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Extensive list of Tailwind colors (shades 300, 500, 700 for variety)
 // "Kotak kecil2 nggabung" -> Dense grid of small squares

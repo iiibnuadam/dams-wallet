@@ -44,7 +44,9 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  const links = NAV_LINKS;
+  // Filter links based on user role
+  const role = session?.user?.role || "USER";
+  const links = NAV_LINKS.filter(link => !link.roles || link.roles.includes(role as any));
 
   if (!mounted) return null;
 

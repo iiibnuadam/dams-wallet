@@ -39,7 +39,8 @@ import { createTransaction } from "@/actions/transaction";
 import { getCategoriesAction } from "@/actions/category-actions";
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { CategoryCombobox } from "@/components/ui/category-combobox";
 
 // Need to match the enum from models or define a local one if type import fails, but best to have shared types.
 // I'll assume TransactionType is available in types/transaction or models/Transaction
@@ -73,13 +74,16 @@ interface AddTransactionDialogProps {
     trigger?: React.ReactNode;
     defaultGoalItemId?: string;
     defaultDescription?: string;
+    onSuccess?: () => void;
+    successBehavior?: 'reload' | 'refresh';
 }
 
 
-export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaultGoalItemId, defaultDescription }: AddTransactionDialogProps) {
+export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaultGoalItemId, defaultDescription, onSuccess, successBehavior = 'reload' }: AddTransactionDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(ClientTransactionType.EXPENSE);
   const params = useParams();
+  const router = useRouter();
   
   // Determine if we are in a specific wallet context from URL params if not explicitly passed
   // (Note: params.id might serve other purposes in other routes, so be careful. 
@@ -192,6 +196,15 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
           date: new Date().toISOString().split('T')[0],
       });
       toast.success("Transaction added");
+      if (onSuccess) {
+          onSuccess();
+      } else if (successBehavior === 'refresh') {
+          // Trigger custom event for client components to listen to
+          window.dispatchEvent(new CustomEvent('transaction-added'));
+          router.refresh();
+      } else {
+          window.location.reload(); 
+      }
     } else {
       console.log(result)
         toast.error(result.message);
@@ -315,22 +328,16 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem>
+                 <FormItem className="flex flex-col">
                   <FormLabel>Category</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {filteredCategories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                   <FormControl>
+                        <CategoryCombobox
+                            categories={filteredCategories}
+                            value={field.value}
+                            onChange={field.onChange}
+                            modal
+                        />
+                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

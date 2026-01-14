@@ -4,6 +4,7 @@ export interface IUser extends Document {
   name: string;
   username: string; // "ADAM" or "SASTI"
   password?: string; // Hashed password
+  role: "ADMIN" | "USER";
 }
 
 const UserSchema: Schema = new Schema(
@@ -11,6 +12,7 @@ const UserSchema: Schema = new Schema(
     name: { type: String, required: true },
     username: { type: String, required: true, unique: true, uppercase: true },
     password: { type: String, required: false }, // Optional for now if we have legacy users, but we will fill it
+    role: { type: String, enum: ["ADMIN", "USER"], default: "USER" },
   },
   { timestamps: true }
 );

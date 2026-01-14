@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MoneyInput } from "@/components/ui/money-input";
 import { Plus, Loader2, Pencil } from "lucide-react";
 import { getCategoriesAction } from "@/actions/category-actions";
+import { CategoryCombobox } from "@/components/ui/category-combobox";
 
 const formSchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -48,6 +50,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const router = useRouter();
 
   const isControlled = typeof controlledOpen !== "undefined";
   const open = isControlled ? controlledOpen : internalOpen;
@@ -73,6 +76,22 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
       status: routine?.status || "ACTIVE",
     },
   });
+
+  useEffect(() => {
+    if (routine) {
+        form.reset({
+            description: routine.description || "",
+            amount: routine.amount?.toString() || "",
+            frequency: routine.frequency || "MONTHLY",
+            startDate: routine.nextRun ? new Date(routine.nextRun).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            type: routine.type || "EXPENSE",
+            wallet: routine.wallet || "",
+            targetWallet: routine.targetWallet || "",
+            category: routine.category || "",
+            status: routine.status || "ACTIVE",
+        });
+    }
+  }, [routine, form]);
 
   // Watch type to conditionally show fields
   const type = form.watch("type");
@@ -106,6 +125,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
     if (res.success) {
       setOpen(false);
       form.reset();
+      router.refresh(); // Refresh server data
       if (onSaved) onSaved();
     } else {
       toast.error(res.message || "Failed to save routine");
@@ -303,22 +323,16 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
                 control={form.control}
                 name="category"
                 render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select category (Optional)" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                             {categories.filter(c => c.type === form.watch("type")).map((c: any) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <FormControl>
+                        <CategoryCombobox
+                            categories={categories.filter(c => c.type === form.watch("type"))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            modal
+                        />
+                    </FormControl>
                     <FormMessage />
                 </FormItem>
                 )}

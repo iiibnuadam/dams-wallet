@@ -47,6 +47,9 @@ export const authOptions: NextAuthOptions = {
             // If password has hash (it should), compare.
             // If legacy user without password (not possible with new seed), handle? 
             // We assume seed ran.
+            // If password has hash (it should), compare.
+            // If legacy user without password (not possible with new seed), handle? 
+            // We assume seed ran.
             if (user.password) {
                  const isValid = await bcrypt.compare(creds.password, user.password);
                  if (!isValid) return null;
@@ -54,11 +57,18 @@ export const authOptions: NextAuthOptions = {
                 return null; // Force password usage
             }
 
+            // Fallback for ADAM if role is not set yet in DB
+            let role = user.role || "USER";
+            if (user.username === "ADAM") {
+                role = "ADMIN";
+            }
+
             return { 
                 id: user._id.toString(), 
                 name: user.name, 
                 email: `${user.username.toLowerCase()}@dams.com`, 
-                image: null 
+                image: null,
+                role: role,
             };
         } catch (e) {
             console.error("Auth error:", e);
@@ -69,13 +79,21 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt", // Credentials provider requires JWT strategy usually
+    maxAge: 86400, // 24 hours
   },
   callbacks: {
+      async jwt({ token, user }) {
+        if (user) {
+            token.role = user.role;
+            token.sub = user.id;
+        }
+        return token;
+      },
       async session({ session, token }) {
           if (session.user && token.sub) {
               // Ensure user ID is available in session
-              // @ts-expect-error: extending user type via module augmentation is tricky, suppressing for now
               session.user.id = token.sub; 
+              session.user.role = token.role as string;
           }
           return session;
       }

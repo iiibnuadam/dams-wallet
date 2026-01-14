@@ -69,8 +69,18 @@ export function TransactionList({ transactions: initialTransactions, contextPara
       hasNextPage,
       isFetchingNextPage,
       isLoading,
-      isError
+      isError,
+      refetch
   } = useTransactions(params, { enabled: !initialTransactions });
+
+  // Listen for external refresh triggers (e.g. from AddTransactionDialog)
+  useEffect(() => {
+      const handleRefresh = () => {
+          refetch();
+      };
+      window.addEventListener('transaction-added', handleRefresh);
+      return () => window.removeEventListener('transaction-added', handleRefresh);
+  }, [refetch]);
 
   const { mutate: deleteTransaction, mutateAsync: deleteTransactionAsync } = useDeleteTransaction();
 

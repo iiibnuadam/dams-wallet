@@ -17,7 +17,7 @@ export default async function CategoriesPage() {
     const categories = await getCategoriesAction();
 
     return (
-        <div className="container max-w-5xl py-8 space-y-6">
+        <div className="container max-w-7xl mx-auto py-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                      <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

@@ -70,7 +70,7 @@ export async function WalletHeader({ id }: { id: string }) {
                             <WalletViewToggle />
                         </div>
                         <div className="hidden md:block">
-                            <AddTransactionDialog wallets={allWallets} defaultWalletId={id} />
+                            <AddTransactionDialog wallets={allWallets} defaultWalletId={id} successBehavior="refresh" />
                         </div>
                         <EditWalletDialog wallet={wallet} />
                     </div>

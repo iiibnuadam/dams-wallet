@@ -223,7 +223,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
                 {routines.length === 0 && (
                     <div className="col-span-full text-center py-12 border border-dashed rounded-lg bg-muted/20">
                         <p className="text-muted-foreground mb-4">No active routines found.</p>
-                         <RoutineFormDialog wallets={wallets} />
+                         <RoutineFormDialog wallets={wallets} onSaved={fetchRoutines} />
                     </div>
                 )}
             </div>

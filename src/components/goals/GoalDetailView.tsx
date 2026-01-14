@@ -39,6 +39,7 @@ interface GroupNode extends GoalGroup {
     items: any[];
     totalEstimated: number;
     totalActual: number;
+    totalItemCount: number;
 }
 
 export function GoalDetailView({ goalId }: GoalDetailViewProps) {
@@ -58,7 +59,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         // 1. Initialize nodes
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (goal.groups || []).forEach((g: any) => {
-            groupMap.set(g._id, { ...g, children: [], items: [], totalEstimated: 0, totalActual: 0 });
+            groupMap.set(g._id, { ...g, children: [], items: [], totalEstimated: 0, totalActual: 0, totalItemCount: 0 });
         });
 
         // 2. Assign Items to Groups
@@ -97,16 +98,19 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
              // Sum direct items
              let estimated = node.items.reduce((acc, i) => acc + i.estimatedAmount, 0);
              let actual = node.items.reduce((acc, i) => acc + i.actualAmount, 0);
+             let itemCount = node.items.length;
 
              // Sum children
              node.children.forEach(child => {
                  calculateTotals(child);
                  estimated += child.totalEstimated;
                  actual += child.totalActual;
+                 itemCount += child.totalItemCount;
              });
 
              node.totalEstimated = estimated;
              node.totalActual = actual;
+             node.totalItemCount = itemCount;
         };
 
         roots.forEach(calculateTotals);
@@ -121,7 +125,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                  children: [],
                  items: orphanItems,
                  totalEstimated: orphanItems.reduce((acc, i) => acc + i.estimatedAmount, 0),
-                 totalActual: orphanItems.reduce((acc, i) => acc + i.actualAmount, 0)
+                 totalActual: orphanItems.reduce((acc, i) => acc + i.actualAmount, 0),
+                 totalItemCount: orphanItems.length
              };
              roots.push(unassignedNode);
         }
@@ -242,7 +247,10 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                              </h4>
                                              {/* Metadata Stacked */}
                                              <div className="text-xs text-muted-foreground mt-1.5 font-medium flex flex-col gap-1 opacity-80">
-                                                <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">{node.items.length} items</span>
+                                                <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">
+                                                    {node.totalItemCount} items
+                                                    {node.children.length > 0 && ` • ${node.children.length} groups`}
+                                                </span>
                                                 <span className="truncate">Need {formatCurrency(groupRemaining)}</span>
                                              </div>
                                         </div>

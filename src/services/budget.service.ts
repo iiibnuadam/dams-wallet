@@ -416,5 +416,38 @@ export const BudgetService = {
     .lean();
 
     return transactions;
+  },
+
+  async syncNewCategoryGroup(userId: string, category: any) {
+    if (!category.group || !category.bucket) return;
+
+    await dbConnect();
+    const today = new Date();
+    const period = today.toISOString().slice(0, 7); // YYYY-MM
+
+    // Find current active budget
+    const budget = await MonthlyBudget.findOne({ user: userId, period, isDeleted: false });
+    if (!budget) return; // No budget to sync to
+
+    // Check if group already exists (by name or targetGroup)
+    const exists = budget.groups.some(g => g.name === category.group || g.targetGroup === category.group);
+    
+    if (!exists) {
+        // Append new group
+        const newGroup = {
+            name: category.group,
+            type: category.bucket, // NEEDS or WANTS
+            icon: category.icon || "📁",
+            color: category.color || "#6b7280",
+            limit: 0,
+            trackingType: "MONTHLY",
+            targetGroup: category.group, // Auto-link
+            categories: [] // Mixed mode support, but we rely on targetGroup for simple mode
+        };
+        
+        await MonthlyBudget.findByIdAndUpdate(budget._id, {
+            $push: { groups: newGroup }
+        });
+    }
   }
 };
