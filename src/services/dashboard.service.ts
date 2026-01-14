@@ -7,8 +7,11 @@ import "@/models/Goal"; // Register Goal schema
 import mongoose from "mongoose";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getDashboardData(owner?: string, searchParams?: any) {
+export async function getDashboardData(owner?: string, searchParams: any = {}) {
   await dbConnect();
+  
+  // Ensure searchParams is an object to prevent assignment errors
+  if (!searchParams) searchParams = {};
   
   let start: Date, end: Date;
   
