@@ -19,15 +19,12 @@ export async function GET(request: Request) {
         params.currentUser = (session.user as any).id;
     }
 
-    console.log("[TransactionsAPI] Fetching transactions with params:", JSON.stringify(params));
     const data = await getTransactions(params);
-    console.log("[TransactionsAPI] Data fetch success, count:", data.transactions?.length);
-
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[TransactionsAPI] Critical Error:", error);
+    console.error("Error fetching transactions:", error);
     return NextResponse.json(
-      { error: "Failed to fetch transactions", details: String(error) },
+      { error: "Failed to fetch transactions" },
       { status: 500 }
     );
   }
