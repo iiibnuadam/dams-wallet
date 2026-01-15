@@ -14,7 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Wallet } from "lucide-react";
+import Image from "next/image";
+
 
 export default function SignInPage() {
   const router = useRouter();
@@ -61,9 +62,15 @@ export default function SignInPage() {
     <div className="flex h-screen w-full items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-            <div className="flex justify-center mb-2">
-                <div className="p-3 bg-primary/10 rounded-full">
-                    <Wallet className="w-6 h-6 text-primary" />
+            <div className="flex justify-center mb-4">
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden shadow-sm">
+                   <Image 
+                     src="/icon-192.png" 
+                     alt="Logo" 
+                     fill
+                     className="object-cover"
+                     priority
+                   />
                 </div>
             </div>
           <CardTitle className="text-2xl">Dams Wallet</CardTitle>

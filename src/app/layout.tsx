@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dams Wallet",
   description: "Your Personal Finance Manager",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Dams Wallet",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport = {

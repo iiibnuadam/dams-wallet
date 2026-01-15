@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { signOut, useSession } from "next-auth/react";
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NAV_LINKS } from "@/lib/nav-config";
 import { 
-  Wallet, 
+ 
   User, 
   LogOut, 
   Moon, 
@@ -83,8 +84,8 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
         {/* Logo Area */}
         <div className={cn("h-16 flex items-center border-b transition-all duration-300", collapsed ? "justify-center px-0" : "px-6 justify-between")}>
            <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary overflow-hidden whitespace-nowrap">
-              <div className="bg-primary text-primary-foreground p-1 rounded-lg flex-shrink-0">
-                <Wallet className="w-5 h-5" />
+              <div className="relative w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                 <Image src="/icon-192.png" alt="Dams Wallet" fill className="object-cover" />
               </div>
               <span className={cn(
                   "text-foreground transition-all duration-300 overflow-hidden",
