@@ -248,7 +248,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         // Shared Column Widths
         const COL_PROGRESS = "w-[150px]";
         const COL_AMOUNT = "w-auto md:w-[130px]"; // Responsive width
-        const COL_ACTIONS = "w-[40px]"; // For hover buttons
+        const COL_ACTIONS = "w-auto md:w-[40px]"; // For hover buttons
 
         return (
             <AccordionItem 
@@ -303,10 +303,14 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                              </h4>
                                              {/* Metadata Stacked */}
                                              <div className="text-xs text-muted-foreground mt-1.5 font-medium flex flex-col gap-1 opacity-80">
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                                                 <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">
                                                     {node.totalItemCount} items
+                                                </span>
+                                                <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">
                                                     {node.children.length > 0 && ` • ${node.children.length} groups`}
                                                 </span>
+                                              </div>
                                                 {/* Group Status Logic */}
                                                 {(() => {
                                                     let statusLabel = "";
@@ -556,68 +560,70 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                      {/* Main Item Content Container - Matches Header Structure */}
                                     <div className="flex-1 flex flex-col py-3 px-4 min-w-0 gap-1.5 md:gap-0">
                                         {/* Top Row / Desktop Main Row */}
-                                        <div className="flex items-center w-full gap-4">
-                                            
-                                            {/* Left: Icon & Name */}
-                                            <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
-                                                {/* Item Icon / Avatar - HIDDEN ON MOBILE */}
-                                                <div className={cn(
-                                                    "hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-xs font-bold shrink-0 transition-all shadow-sm ml-0.5", 
-                                                    isPaid 
-                                                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" 
-                                                        : "bg-white/40 dark:bg-white/5 text-muted-foreground border border-white/10"
-                                                )}>
-                                                    {isPaid ? <CheckCircle2 className="w-4 h-4" /> : item.name.charAt(0)}
-                                                </div>
+                                        <div className="flex flex-col md:flex-row w-full md:items-center gap-2 md:gap-4">
+                                            {/* Mobile Wrapper for Name and Amount */}
+                                            <div className="flex items-center w-full md:w-auto md:contents gap-4 justify-between">
+                                                {/* Left: Icon & Name */}
+                                                <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+                                                    {/* Item Icon / Avatar - HIDDEN ON MOBILE */}
+                                                    <div className={cn(
+                                                        "hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-xs font-bold shrink-0 transition-all shadow-sm ml-0.5", 
+                                                        isPaid 
+                                                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" 
+                                                            : "bg-white/40 dark:bg-white/5 text-muted-foreground border border-white/10"
+                                                    )}>
+                                                        {isPaid ? <CheckCircle2 className="w-4 h-4" /> : item.name.charAt(0)}
+                                                    </div>
 
-                                                <div className="min-w-0 flex flex-col justify-center">
-                                                    <span className="font-medium text-sm truncate flex items-center gap-2 text-foreground/90">
-                                                        {item.name}
-                                                    </span>
-                                                    <div className="flex items-center gap-2 text-[10px] mt-0.5">
-                                                        <span className="text-muted-foreground opacity-70">
-                                                            Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
+                                                    <div className="min-w-0 flex flex-col justify-center">
+                                                        <span className="font-medium text-sm truncate flex items-center gap-2 text-foreground/90 whitespace-break-spaces">
+                                                            {item.name}
                                                         </span>
-                                                        <span className={cn("px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5", statusClass)}>
-                                                            {statusLabel}
-                                                        </span>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-2 text-[10px] mt-0.5 w-fit">
+                                                            <span className="text-muted-foreground opacity-70">
+                                                                Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
+                                                            </span>
+                                                            <span className={cn("px-1.5 py-0.5 rounded w-fit bg-black/5 dark:bg-white/5", statusClass)}>
+                                                                {statusLabel}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Mobile Amount Display */}
-                                            <div className="md:hidden flex flex-col items-end shrink-0">
-                                                <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                    {formatCurrency(item.actualAmount)}
+                                                {/* Mobile Amount Display */}
+                                                <div className="md:hidden flex flex-col items-end shrink-0">
+                                                    <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                        {formatCurrency(item.actualAmount)}
+                                                    </div>
+                                                    {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                                 </div>
-                                                {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                             </div>
 
                                             {/* Right Columns - Desktop Only */}
                                             <div className="hidden md:flex items-center h-full gap-5">
-                                                 {/* Progress Column */}
-                                                 <div className={cn(COL_PROGRESS, "flex flex-col justify-center")}>
-                                                     <div className="h-1.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                                {/* Progress Column */}
+                                                <div className={cn(COL_PROGRESS, "flex flex-col justify-center")}>
+                                                    <div className="h-1.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden border border-white/5">
                                                         <div 
                                                             className={cn("h-full rounded-full transition-all duration-500 shadow-sm", isItemOver ? "bg-red-500" : "bg-emerald-500")}
                                                             style={{ width: `${Math.min(progress, 100)}%` }}
                                                         />
-                                                     </div>
-                                                     <div className="text-[9px] text-muted-foreground text-right mt-1 font-medium opacity-60">{progress.toFixed(0)}%</div>
-                                                 </div>
+                                                    </div>
+                                                    <div className="text-[9px] text-muted-foreground text-right mt-1 font-medium opacity-60">{progress.toFixed(0)}%</div>
+                                                </div>
 
-                                                 {/* Amount Column */}
-                                                 <div className={cn(COL_AMOUNT, "text-right shrink-0")}>
-                                                     <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                         {formatCurrency(item.actualAmount)}
-                                                     </div>
-                                                     {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
-                                                 </div>
+                                                {/* Amount Column */}
+                                                <div className={cn(COL_AMOUNT, "text-right shrink-0")}>
+                                                    <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                        {formatCurrency(item.actualAmount)}
+                                                    </div>
+                                                    {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
+                                                </div>
                                             </div>
                                             
-                                            {/* Pay Action (Fixed) */}
-                                            <div className={cn(COL_ACTIONS, "flex justify-end")}>
-                                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-all scale-90 group-hover/item:scale-100">
+                                            {/* Pay Action (Responsive) */}
+                                            <div className={cn(COL_ACTIONS, "flex w-full md:w-auto justify-end mt-1 md:mt-0")}>
+                                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-all scale-100 md:scale-90 md:group-hover/item:scale-100">
                                                      {/* View Mode: Pay Only */}
                                                      {!isEditMode && (
                                                          <>
@@ -746,7 +752,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                     </div>
                                     <div className="space-y-1">
                                          <div className="flex items-center gap-3">
-                                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
+                                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm whitespace-break-spaces">
                                                 {goal.name}
                                             </h1>
                                             {goal.visibility === "SHARED" && (
