@@ -2,6 +2,8 @@ import { Navbar } from "@/components/Navbar";
 import { DebtList } from "@/components/debt/DebtList";
 import { DebtFormDialog } from "@/components/debt/DebtFormDialog";
 import { History } from "lucide-react";
+import { Suspense } from "react";
+import { DebtListSkeleton } from "@/components/skeletons";
 
 export default async function DebtsPage() {
   return (
@@ -15,7 +17,9 @@ export default async function DebtsPage() {
             <p className="text-muted-foreground">Track who owes you and who you owe.</p>
         </div>
 
-        <DebtList />
+        <Suspense fallback={<DebtListSkeleton />}>
+          <DebtList />
+        </Suspense>
       </main>
     </div>
   );
