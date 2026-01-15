@@ -37,7 +37,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { createTransaction } from "@/actions/transaction";
 import { getCategoriesAction } from "@/actions/category-actions";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
@@ -391,7 +391,16 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
             />
 
             <DialogFooter>
-              <Button type="submit">Save Transaction</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+                {form.formState.isSubmitting ? (
+                    <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                    </>
+                ) : (
+                    "Save Transaction"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

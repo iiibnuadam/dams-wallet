@@ -119,19 +119,6 @@ export function BottomNav() {
                                         </Link>
                                     );
                                 })}
-
-                            <button 
-                                onClick={() => {
-                                    setOpen(false);
-                                    setProfileOpen(true);
-                                }}
-                                className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                                <div className="p-2 rounded-full bg-primary/10 text-primary">
-                                    <User className="w-6 h-6" />
-                                </div>
-                                <span className="text-xs font-medium text-center">Profile</span>
-                            </button>
                         </div>
                         <div className="p-4 pb-8">
                             <div className="text-center text-xs text-muted-foreground">
