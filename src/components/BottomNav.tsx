@@ -5,10 +5,8 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, History, Plus, Wallet, MoreHorizontal, User, Repeat, BarChart3, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddTransactionDialog } from "./AddTransactionDialog";
-import { AddWalletDialog } from "./AddWalletDialog";
 import { Button } from "./ui/button";
 import { useState } from "react";
-import { ProfileDialog } from "@/components/ProfileDialog";
 import { useSession } from "next-auth/react";
 
 import { NAV_LINKS } from "@/lib/nav-config";
@@ -24,7 +22,6 @@ export function BottomNav() {
     const { data: wallets = [] } = useWallets("ALL");
     const { data: session } = useSession();
     const pathname = usePathname();
-    const [profileOpen, setProfileOpen] = useState(false);
     const [open, setOpen] = useState(false);
     const { setTheme, theme } = useTheme();
 
@@ -128,11 +125,6 @@ export function BottomNav() {
                     </DrawerContent>
                 </Drawer>
             </div>
-            
-            <ProfileDialog 
-                open={profileOpen} 
-                onOpenChange={setProfileOpen} 
-            />
         </>
     );
 }
