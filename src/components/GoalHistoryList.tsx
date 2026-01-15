@@ -7,9 +7,10 @@ interface GoalHistoryListProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     history: any[];
     itemColorMap?: Record<string, string>;
+    onRefresh?: () => void;
 }
 
-export function GoalHistoryList({ history, itemColorMap = {} }: GoalHistoryListProps) {
+export function GoalHistoryList({ history, itemColorMap = {}, onRefresh }: GoalHistoryListProps) {
     if (history.length === 0) {
         return (
             <div className="text-center py-10 text-muted-foreground border rounded-xl bg-muted/20">
@@ -39,7 +40,11 @@ export function GoalHistoryList({ history, itemColorMap = {} }: GoalHistoryListP
                 transaction={selectedTx}
                 customDeleteAction={deleteGoalPaymentAction}
                 onDeleteSuccess={() => {
-                    router.refresh();
+                    if (onRefresh) {
+                        onRefresh();
+                    } else {
+                        router.refresh();
+                    }
                 }}
             />
 

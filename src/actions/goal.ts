@@ -90,7 +90,7 @@ export async function deleteGoalAction(id: string) {
 
 // --- Goal Item Actions ---
 
-import { createGoalItem, updateGoalItem, deleteGoalItem } from "@/services/goal.service";
+import { createGoalItem, updateGoalItem, deleteGoalItem, setGoalItemCompletion } from "@/services/goal.service";
 
 const goalItemSchema = z.object({
   goalId: z.string().min(1, "Goal ID is required"),
@@ -320,5 +320,18 @@ export async function getGoalsAction() {
     } catch (error) {
         console.error("Failed to fetch goals:", error);
         return [];
+    }
+}
+
+export async function updateGoalItemCompletionAction(itemId: string, isCompleted: boolean) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    try {
+        await setGoalItemCompletion(itemId, isCompleted);
+        revalidatePath("/goals");
+        return { success: true, message: "Item status updated" };
+    } catch (e: any) {
+        return { success: false, message: e.message || "Failed to update item status" };
     }
 }

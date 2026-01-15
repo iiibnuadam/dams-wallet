@@ -7,10 +7,16 @@ import { Target, Calendar, Share2, Wallet, TrendingDown, CheckCircle2, Loader2 }
 import { GoalListSkeleton } from "@/components/skeletons";
 
 export function GoalList() {
-    const { data: goals = [], isLoading } = useGoals();
+    const { data: rawGoals, isLoading } = useGoals();
+    const goals = Array.isArray(rawGoals) ? rawGoals : [];
 
     if (isLoading) {
         return <GoalListSkeleton />;
+    }
+
+    if (!Array.isArray(rawGoals) && !isLoading) {
+        // If data is not array (e.g. HTML error), render error state or empty
+        console.error("GoalList: Data is not an array", rawGoals);
     }
 
     if (goals.length === 0) {

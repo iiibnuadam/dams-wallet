@@ -2,6 +2,7 @@ import Transaction, { ITransaction, TransactionType } from "../models/Transactio
 import Wallet from "../models/Wallet";
 import dbConnect from "../lib/db";
 import { startOfMonth, endOfMonth, startOfDay, endOfDay, parse } from "date-fns";
+import { Types } from "mongoose";
 import "@/models/GoalItem"; // Register GoalItem schema
 import "@/models/Goal"; // Register Goal schema
 import "@/models/Category"; // Register Category schema
@@ -114,17 +115,24 @@ export async function getTransactions(params: any) {
     // 3. Wallet Filter
     if (params.walletId && params.walletId !== "ALL") {
         query.$or = [
-            { wallet: params.walletId },
-            { targetWallet: params.walletId }
+            { wallet: new Types.ObjectId(params.walletId) },
+            { targetWallet: new Types.ObjectId(params.walletId) }
         ];
     }
 
     // 4. Category Filter
     if (params.categoryId && params.categoryId !== "ALL") {
-        if (params.categoryId.includes(',')) {
-            query.category = { $in: params.categoryId.split(',') };
-        } else {
-            query.category = params.categoryId;
+        let catIds: string[] = [];
+        if (Array.isArray(params.categoryId)) {
+             // If somehow passed as array
+             catIds = params.categoryId.map((s: any) => String(s).trim());
+        } else if (typeof params.categoryId === 'string') {
+             // Comma separated string
+             catIds = params.categoryId.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+        }
+
+        if (catIds.length > 0) {
+            query.category = { $in: catIds.map(id => new Types.ObjectId(id)) };
         }
     }
 
@@ -160,7 +168,7 @@ export async function getTransactions(params: any) {
          if (targetUser) {
              const targetWallets = await Wallet.find({ owner: targetUser._id, isDeleted: false } as any).select("_id");
              const walletIds = targetWallets.map(w => w._id);
-             query.wallet = { $in: walletIds };
+             query.wallet = { $in: walletIds }; // walletIds are typically ObjectIds from find
          }
     } else if (view === "ALL") {
         const { default: User } = await import("@/models/User");

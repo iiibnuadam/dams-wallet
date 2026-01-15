@@ -188,8 +188,13 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
         activeFilters.push({ key: 'walletId', label: w ? w.name : "Wallet", value: walletId });
     }
     if (categoryId && categoryId !== "ALL") {
-        const c = categories.find(c => c._id === categoryId);
-        activeFilters.push({ key: 'categoryId', label: c ? c.name : "Category", value: categoryId });
+        const ids = categoryId.split(',');
+        if (ids.length === 1) {
+             const c = categories.find(c => c._id === ids[0]);
+             activeFilters.push({ key: 'categoryId', label: c ? c.name : "Category", value: categoryId });
+        } else {
+             activeFilters.push({ key: 'categoryId', label: `${ids.length} Categories`, value: categoryId });
+        }
     }
     if (goalId && goalId !== "ALL") {
         const g = goals.find(g => g._id === goalId);
@@ -339,14 +344,55 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
                             {/* Category Filter (Self Contained) */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Category</label>
-                                <CategoryCombobox
+                            <CategoryCombobox
                                     categories={[
+                                        // Filter ALL option if multiple? Or handle custom?
+                                        // Usually 'ALL' clears selection or selects all.
+                                        // Let's keep ALL separate or allow it.
+                                        // If user selects ALL, we should probably clear others?
+                                        // For simplicity, remove ALL from list in multiple mode or handle carefully.
+                                        // Current API expects "ALL" to clear.
+                                        // If I select "ALL", it should set categoryId="ALL".
                                         { _id: "ALL", name: "All Categories" },
                                         ...categories.filter((c: any) => type === "ALL" || c.type === type)
                                     ]}
                                     value={categoryId}
-                                    onChange={setCategoryId}
+                                    onChange={(val) => {
+                                        if (Array.isArray(val)) {
+                                            // Ensure uniqueness and handle "ALL"
+                                            if (val.includes("ALL")) {
+                                                // If ALL is selected, clear everything else?
+                                                // Or if user clicks ALL, we set to ALL.
+                                                // Logic: if new val contains ALL, set to ALL.
+                                                // But val includes old selection.
+                                                // If previously was NOT ALL, and now has ALL -> Set ALL.
+                                                // If previously was ALL, and deselects ALL -> Empty?
+                                                
+                                                // Simpler: Just join. If "ALL" is in string, backend handles "ALL" as ignore?
+                                                // Backend checks params.categoryId !== "ALL".
+                                                // So if string is "ALL", it works.
+                                                // If string is "A,B", fine.
+                                                // If string "ALL, A", backend might fail.
+                                                
+                                                // My logic: If val contains "ALL", set to "ALL".
+                                                // But handleSelect toggles.
+                                                // Let's check if 'val' contains 'ALL' and it wasn't there before? Hard to know.
+                                                
+                                                // Improving:
+                                                if (val.includes("ALL")) {
+                                                     setCategoryId("ALL");
+                                                } else {
+                                                     setCategoryId(val.length > 0 ? val.join(',') : "ALL");
+                                                }
+                                            } else {
+                                                setCategoryId(val.length > 0 ? val.join(',') : "ALL");
+                                            }
+                                        } else {
+                                            setCategoryId(val);
+                                        }
+                                    }}
                                     placeholder="All Categories"
+                                    multiple
                                 />
                             </div>
                             

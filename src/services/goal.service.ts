@@ -29,6 +29,12 @@ export async function updateGoalItem(id: string, data: Partial<IGoalItem> & { gr
   return JSON.parse(JSON.stringify(item));
 }
 
+export async function setGoalItemCompletion(id: string, isCompleted: boolean) {
+    await dbConnect();
+    const item = await GoalItem.findByIdAndUpdate(id, { isCompleted }, { new: true });
+    return JSON.parse(JSON.stringify(item));
+}
+
 export async function deleteGoalItem(id: string) {
   await dbConnect();
   await GoalItem.findByIdAndDelete(id);

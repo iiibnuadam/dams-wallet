@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -44,8 +44,18 @@ interface GroupNode extends GoalGroup {
 
 export function GoalDetailView({ goalId }: GoalDetailViewProps) {
     const router = useRouter();
-    const { data: goal, isLoading: isGoalLoading, error } = useGoal(goalId);
+    const { data: goal, isLoading: isGoalLoading, error, refetch } = useGoal(goalId);
     const { data: wallets = [] } = useWallets("ALL");
+
+    // Debugging render
+    // console.log("GoalDetailView Render:", { goalId, goalType: typeof goal, isGoalLoading });
+
+    // Memoize refresh to prevent unnecessary re-renders or loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleRefresh = useCallback(() => {
+        console.log("handleRefresh called");
+        refetch();
+    }, []);
 
     const [activeTab, setActiveTab] = useState("overview");
     const [historyFilter, setHistoryFilter] = useState<{ type: 'ALL' | 'GROUP' | 'ITEM', id?: string, name?: string }>({ type: 'ALL' });
@@ -53,7 +63,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
     // Build the Tree
     const rootNodes = useMemo(() => {
-        if (!goal) return [];
+        if (!goal || typeof goal !== 'object') return [];
 
         const groupMap = new Map<string, GroupNode>();
         // 1. Initialize nodes
@@ -152,9 +162,20 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
         if (historyFilter.type === 'ITEM') return txnItemId === historyFilter.id;
         if (historyFilter.type === 'GROUP') {
-             // TODO: Robust Group Filtering (including subgroups?)
-             // For now simple match
-             return true; 
+             // Recursively find all group IDs under this group
+             const getGroupIds = (rootId: string): string[] => {
+                const directChildren = (goal.groups || []).filter((g: any) => g.parentGroupId === rootId);
+                return [rootId, ...directChildren.flatMap((c: any) => getGroupIds(c._id))];
+             };
+             
+             const targetGroupIds = new Set(getGroupIds(historyFilter.id!));
+             const allowedItemIds = new Set(
+                 (goal.items || [])
+                 .filter((i: any) => i.groupId && targetGroupIds.has(i.groupId))
+                 .map((i: any) => i._id)
+             );
+
+             return allowedItemIds.has(txnItemId);
         }
         return true;
     });
@@ -169,8 +190,30 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
     const totalEstimated = goal.items.reduce((sum: number, item: any) => sum + item.estimatedAmount, 0);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const totalActual = goal.items.reduce((sum: number, item: any) => sum + item.actualAmount, 0);
-    const overallProgress = totalEstimated > 0 ? (totalActual / totalEstimated) * 100 : 0;
-    const totalRemaining = Math.max(0, totalEstimated - totalActual);
+    
+    // Remaining is: sum of (item.estimated - item.actual) for incomplete items only?
+    // OR: Total Est - Total Act?
+    // If I have item A: Est 100, Act 80, Done. Remaining 0.
+    // If simple subtraction: 100 - 80 = 20 remaining.
+    // So we must calculate remaining per item!
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalRemaining = goal.items.reduce((sum: number, item: any) => {
+        if (item.isCompleted) return sum; // 0 remaining for this item
+        return sum + Math.max(0, item.estimatedAmount - item.actualAmount);
+    }, 0);
+
+    // Progress = (Total Est - Total Remaining) / Total Est ?
+    // If I saved money (Est 100, Act 80, Done), I achieved the goal of 100 value? 
+    // Usually "Progress" means how much of the bill is paid.
+    // If I negotiated 100 -> 80, I effectively paid 100% of the obligation.
+    // So progress should be based on "Virtual Actual"? 
+    // Let's stick to (totalActual / totalEstimated) but cap at 100? 
+    // NO, if I saved 20, my totalActual is 80. 
+    // If I display 80/100, it looks 80%.
+    // But if "Done", user expects 100%.
+    // Let's use: (Total Est - Total Remaining) / Total Est
+    // If Remaining is 0, Progress is 100%. Correct.
+    const overallProgress = totalEstimated > 0 ? ((totalEstimated - totalRemaining) / totalEstimated) * 100 : 0;
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("id-ID", {
@@ -186,7 +229,20 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
     // Recursive Group Renderer
     const GroupRenderer = ({ node, level = 0 }: { node: GroupNode, level?: number }) => {
-        const groupRemaining = Math.max(0, node.totalEstimated - node.totalActual);
+        // Recalculate remaining for this node specially using the item.isCompleted flag logic
+        // We can't just use node.totalEstimated - node.totalActual because totalActual is raw sum.
+        // We need to traverse children/items again or pre-calculate differently?
+        // Since we already have the node structure with items, let's re-sum properly.
+        const calculateNodeRemaining = (n: GroupNode): number => {
+            let rem = n.items.reduce((acc, i) => {
+                if (i.isCompleted) return acc;
+                return acc + Math.max(0, i.estimatedAmount - i.actualAmount);
+            }, 0);
+            n.children.forEach(c => rem += calculateNodeRemaining(c));
+            return rem;
+        };
+        const groupRemaining = calculateNodeRemaining(node);
+        
         const isOverBudget = node.totalActual > node.totalEstimated;
         
         // Shared Column Widths
@@ -251,7 +307,38 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                     {node.totalItemCount} items
                                                     {node.children.length > 0 && ` • ${node.children.length} groups`}
                                                 </span>
-                                                <span className="truncate">Need {formatCurrency(groupRemaining)}</span>
+                                                {/* Group Status Logic */}
+                                                {(() => {
+                                                    let statusLabel = "";
+                                                    let statusClass = "";
+                                                    
+                                                    // Check if all items in this group (recursive?) are completed? 
+                                                    // Or simplier: Check amounts first.
+                                                    if (node.totalActual > node.totalEstimated) {
+                                                        statusLabel = "Melebihi Target"; 
+                                                        statusClass = "text-amber-600 dark:text-amber-400 font-medium";
+                                                    } else if (node.totalActual === node.totalEstimated && node.totalEstimated > 0) {
+                                                        statusLabel = "Tercapai";
+                                                        statusClass = "text-blue-600 dark:text-blue-400 font-medium";
+                                                    } else if (groupRemaining <= 0 && node.totalEstimated > 0) {
+                                                         // Could happen if slight overage or exact
+                                                         statusLabel = "Lunas"; // If items manually marked? Group doesn't have manual mark.
+                                                         // Let's stick to amounts unless we traverse children.
+                                                         statusLabel = "Tercapai";
+                                                         statusClass = "text-blue-600 dark:text-blue-400 font-medium";
+                                                    } else {
+                                                        statusLabel = `Need ${formatCurrency(groupRemaining)}`;
+                                                        statusClass = "text-red-500";
+                                                    }
+
+                                                    if (node.totalEstimated === 0) return null; // Don't show if no estimate
+
+                                                    return (
+                                                        <span className={cn("truncate font-medium flex items-center gap-1.5", statusClass)}>
+                                                            {statusLabel}
+                                                        </span>
+                                                    );
+                                                })()}
                                              </div>
                                         </div>
                                     </div>
@@ -273,13 +360,13 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                             <div className={cn(COL_PROGRESS, "flex flex-col justify-center h-full")}>
                                                 <div className="flex justify-between w-full text-[10px] font-medium text-muted-foreground mb-1.5 opacity-80">
                                                     <span>Progress</span>
-                                                    <span>{((node.totalActual / node.totalEstimated) * 100).toFixed(0)}%</span>
+                                                    <span>{((node.totalEstimated - groupRemaining)/ node.totalEstimated * 100).toFixed(0)}%</span>
                                                 </div>
                                                 <div className="h-2 w-full bg-black/5 dark:bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
                                                     <div 
                                                         className="h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(0,0,0,0.1)]"
                                                         style={{ 
-                                                            width: `${Math.min((node.totalActual / node.totalEstimated) * 100, 100)}%`,
+                                                            width: `${Math.min(((node.totalEstimated - groupRemaining) / node.totalEstimated) * 100, 100)}%`,
                                                             backgroundColor: isOverBudget ? '#ef4444' : (node.color || goalColor)
                                                         }}
                                                     />
@@ -312,9 +399,22 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                     </div>
                                 )}
 
-                                {/* Mobile Actions Row (Below Content) */}
-                                {isEditMode && (
-                                    <div className="md:hidden flex items-center justify-end gap-2 mt-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                                
+                                </div>
+                            </AccordionTrigger>
+
+                            {/* Mobile Actions Row (Rendered OUTSIDE Trigger to avoid nested buttons) */}
+                            {isEditMode && (
+                                <div className={cn(
+                                    "md:hidden flex items-center justify-end gap-2 px-4 pb-4 w-full relative z-10",
+                                    // Match background of header but only bottom part? 
+                                    // Or rely on parent container background? Parent row (line 267) has no bg.
+                                    // We should add background to this div to look seamless.
+                                    level === 0 
+                                        ? "bg-white/10 dark:bg-white/5" 
+                                        : "bg-white/5 dark:bg-white/[0.02]"
+                                )}>
+                                    <div className="flex items-center gap-2 w-full justify-end border-t border-white/5 pt-3">
                                         <EditGroupDialog 
                                             goalId={goal._id} 
                                             group={{ 
@@ -344,15 +444,32 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                             }
                                         />
                                     </div>
-                                )}
-                            </div>
-                        </AccordionTrigger>
+                                </div>
+                            )}
 
                         {/* Actions Overlay - Moved OUTSIDE trigger (Desktop Only) */}
-                        {node._id !== "unassigned" && isEditMode && (
-                            <div className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-1 opacity-100 md:opacity-0 md:group-hover/accordion-trigger:opacity-100 transition-all duration-200 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg z-10 pointer-events-auto scale-90 group-hover/accordion-trigger:scale-100">
-                                <EditGroupDialog 
-                                    goalId={goal._id} 
+                        {node._id !== "unassigned" && (
+                            <div className={cn(
+                                "hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-1 transition-all duration-200 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg z-10 pointer-events-auto",
+                                isEditMode ? "opacity-100 scale-100" : "opacity-0 group-hover/accordion-trigger:opacity-100 scale-90 group-hover/accordion-trigger:scale-100"
+                            )}>
+                                {!isEditMode ? (
+                                    <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-8 w-8 text-muted-foreground hover:text-orange-600 rounded-lg hover:bg-white/50 dark:hover:bg-white/10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleFilter('GROUP', node._id, node.name);
+                                        }}
+                                        title="View Group History"
+                                    >
+                                        <History className="w-4 h-4" />
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <EditGroupDialog 
+                                            goalId={goal._id} 
                                     group={{ 
                                         _id: node._id, 
                                         name: node.name, 
@@ -377,6 +494,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                         </Button>
                                     }
                                 />
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -389,10 +508,40 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                         <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                         
                         {node.items.map((item: any) => {
-                            const progress = item.estimatedAmount > 0 ? (item.actualAmount / item.estimatedAmount) * 100 : 0;
-                            const isItemOver = item.actualAmount > item.estimatedAmount;
-                            const isPaid = progress >= 100;
+                            // If marked as completed, force progress to 100% (or should we show actual?)
+                            // User wants it to look "Lunas".
+                            // Let's say: if completed, Remaining is 0.
+                            const progress = item.isCompleted 
+                                ? 100 
+                                : item.estimatedAmount > 0 
+                                    ? (item.actualAmount / item.estimatedAmount) * 100 
+                                    : 0;
                             
+                            const isItemOver = item.actualAmount > item.estimatedAmount;
+                            const isPaid = item.isCompleted || progress >= 100;
+                            
+                            // If completed but under budget, maybe show green with a check?
+                            const isUnderBudget = item.isCompleted && item.actualAmount < item.estimatedAmount;
+
+                            // Status Logic
+                            const remaining = Math.max(0, item.estimatedAmount - item.actualAmount);
+                            let statusLabel = "";
+                            let statusClass = "";
+
+                            if (item.isCompleted) {
+                                statusLabel = "Lunas";
+                                statusClass = "text-emerald-600 dark:text-emerald-400 font-bold";
+                            } else if (item.actualAmount > item.estimatedAmount) {
+                                statusLabel = "Melebihi Target"; // Exceeded
+                                statusClass = "text-amber-600 dark:text-amber-400 font-medium";
+                            } else if (item.actualAmount === item.estimatedAmount && item.estimatedAmount > 0) {
+                                statusLabel = "Tercapai"; // Reached
+                                statusClass = "text-blue-600 dark:text-blue-400 font-medium";
+                            } else {
+                                statusLabel = `Need ${formatCurrency(remaining)}`;
+                                statusClass = "text-red-500 font-medium";
+                            }
+
                             return (
                                 <div key={item._id} className="group/item relative flex items-center w-full hover:bg-white/10 dark:hover:bg-white/5 transition-colors border-white/5 pl-0 backdrop-blur-[2px]">
                                      {/* Spacer to align with Header Text Start */}
@@ -425,9 +574,14 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                     <span className="font-medium text-sm truncate flex items-center gap-2 text-foreground/90">
                                                         {item.name}
                                                     </span>
-                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 opacity-70">
-                                                        Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
-                                                    </span>
+                                                    <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                                                        <span className="text-muted-foreground opacity-70">
+                                                            Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
+                                                        </span>
+                                                        <span className={cn("px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5", statusClass)}>
+                                                            {statusLabel}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -466,16 +620,30 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-all scale-90 group-hover/item:scale-100">
                                                      {/* View Mode: Pay Only */}
                                                      {!isEditMode && (
-                                                         <PayGoalItemDialog 
-                                                            goalName={goal.name}
-                                                            item={item}
-                                                            wallets={wallets as any[]}
-                                                            trigger={
-                                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-500/20 hover:text-emerald-600 rounded-lg text-muted-foreground">
-                                                                    <Plus className="w-3.5 h-3.5" />
-                                                                </Button>
-                                                            }
-                                                        />
+                                                         <>
+                                                            <Button 
+                                                                size="icon" 
+                                                                variant="ghost" 
+                                                                className="h-7 w-7 hover:bg-orange-500/20 hover:text-orange-600 rounded-lg text-muted-foreground mr-1"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleFilter('ITEM', item._id, item.name);
+                                                                }}
+                                                                title="View History"
+                                                            >
+                                                                <History className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                            <PayGoalItemDialog 
+                                                                goalName={goal.name}
+                                                                item={item}
+                                                                wallets={wallets as any[]}
+                                                                trigger={
+                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-500/20 hover:text-emerald-600 rounded-lg text-muted-foreground">
+                                                                        <Plus className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                }
+                                                            />
+                                                         </>
                                                      )}
                                                      
                                                      {/* Edit Mode Actions */}
@@ -749,17 +917,38 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                 All History
                             </Button>
                         </div>
+
+                         {/* Total Summary */}
+                         {(filteredHistory?.length || 0) > 0 && (
+                            <div className="bg-muted/30 border rounded-2xl p-4 flex justify-between items-end">
+                                <div>
+                                    <p className="text-xs text-muted-foreground font-medium mb-1">
+                                        Total {historyFilter.type === 'ALL' ? 'History' : historyFilter.name}
+                                    </p>
+                                    <h4 className="text-2xl font-bold tracking-tight tabular-nums">
+                                        {formatCurrency((filteredHistory || []).reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0))}
+                                    </h4>
+                                </div>
+                                <div className="text-right">
+                                     <p className="text-xs text-muted-foreground">
+                                        {(filteredHistory || []).length} transactions
+                                     </p>
+                                </div>
+                            </div>
+                         )}
                         
                         <div className="overflow-hidden">
-                             <GoalHistoryList 
+                            <GoalHistoryList 
                                 history={filteredHistory || []} 
                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                itemColorMap={goal.items.reduce((acc: any, item: any) => {
-                                    // Use first char or random color if not grouped? 
-                                    // Or try to find group color.
-                                    acc[item._id] = goal.color || "#6366f1"; 
+                                itemColorMap={(goal?.items || []).reduce((acc: any, item: any) => {
+                                    // Find group for this item
+                                    // Groups is goal.groups array. items have groupId.
+                                    const group = (goal?.groups || []).find((g: any) => g._id === item.groupId);
+                                    acc[item._id] = group?.color || goal?.color || "#6366f1"; 
                                     return acc;
                                 }, {})}
+                                onRefresh={handleRefresh}
                             />
                              {(filteredHistory?.length || 0) === 0 && (
                                 <div className="text-center py-16 text-muted-foreground bg-muted/10">

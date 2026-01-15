@@ -16,9 +16,11 @@ export function useGoals() {
   return useQuery({
     queryKey: ['goals'],
     queryFn: async () => {
-      const response = await apiClient.get('/goals');
+      // apiClient baseURL is '/api', so 'goals' -> '/api/goals'   
+      const response = await apiClient.get('goals');
       return response.data;
     },
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -26,10 +28,14 @@ export function useGoal(id: string) {
   return useQuery({
     queryKey: ['goal', id],
     queryFn: async () => {
-      const response = await apiClient.get(`/goals/${id}`);
+      if (!id) return null;
+      // apiClient baseURL is '/api', so 'goals/${id}' -> '/api/goals/${id}'
+      const response = await apiClient.get(`goals/${id}`);
       return response.data;
     },
     enabled: !!id,
+    refetchOnWindowFocus: false,
+    retry: 1, // Don't retry infinitely on failure
   });
 }
 

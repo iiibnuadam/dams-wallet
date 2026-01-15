@@ -17,6 +17,7 @@ const GoalItemSchema: Schema = new Schema(
     groupName: { type: String }, // Deprecated in favor of groupId, kept for legacy
     name: { type: String, required: true },
     estimatedAmount: { type: Number, required: true },
+    isCompleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

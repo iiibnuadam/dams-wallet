@@ -27,6 +27,8 @@ import { getCategoriesAction } from "@/actions/category-actions";
 import { TransactionType, PaymentPhase } from "@/types/transaction";
 import { toast } from "sonner";
 import { Banknote } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { updateGoalItemCompletionAction } from "@/actions/goal";
 import { useCreateTransaction } from "@/hooks/useTransactions";
 
 const formSchema = z.object({
@@ -35,6 +37,7 @@ const formSchema = z.object({
   date: z.string().min(1, "Date is required"),
   paymentPhase: z.nativeEnum(PaymentPhase),
   note: z.string().optional(),
+  markAsCompleted: z.boolean().default(false),
 });
 
 interface PayGoalItemDialogProps {
@@ -98,6 +101,10 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             const result = await createTx(formData);
 
             if (result.success) {
+                if (values.markAsCompleted) {
+                    await updateGoalItemCompletionAction(item._id, true);
+                }
+                
                 toast.success("Payment recorded successfully!");
                 setOpen(false);
                 form.reset();
@@ -216,6 +223,29 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
                                     <Input placeholder={`Payment for ${item.name}...`} {...field} />
                                 </FormControl>
                                 <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="markAsCompleted"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>
+                                        Mark as Fully Paid (Lunas)
+                                    </FormLabel>
+                                    <p className="text-sm text-muted-foreground">
+                                        Check this if you got a lower price or want to close this item despite paying less than estimated.
+                                    </p>
+                                </div>
                             </FormItem>
                         )}
                     />
