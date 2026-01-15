@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import Logo from "@/assets/icon-192.png";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { signOut, useSession } from "next-auth/react";
@@ -85,7 +86,7 @@ export function Sidebar({ collapsed, toggle }: SidebarProps) {
         <div className={cn("h-16 flex items-center border-b transition-all duration-300", collapsed ? "justify-center px-0" : "px-6 justify-between")}>
            <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary overflow-hidden whitespace-nowrap">
               <div className="relative w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                 <Image src="/icon-192.png" alt="Dams Wallet" fill className="object-cover" />
+                 <Image src={Logo} alt="Dams Wallet" fill className="object-cover" />
               </div>
               <span className={cn(
                   "text-foreground transition-all duration-300 overflow-hidden",

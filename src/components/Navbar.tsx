@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Moon, Sun, LogOut } from "lucide-react"
 import Image from "next/image"
+import Logo from "@/assets/icon-192.png"
 import { ProfileDialog } from "@/components/ProfileDialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -27,7 +28,7 @@ export function Navbar() {
       <div className="flex h-16 items-center px-4 max-w-7xl mx-auto justify-between">
         <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
           <div className="relative w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-            <Image src="/icon-192.png" alt="Dams Wallet" fill className="object-cover" />
+            <Image src={Logo} alt="Dams Wallet" fill className="object-cover" />
           </div>
           <span>Dams Wallets</span>
         </div>

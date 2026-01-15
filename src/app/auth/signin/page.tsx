@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Image from "next/image";
+import Logo from "@/assets/icon-192.png";
 
 
 export default function SignInPage() {
@@ -65,7 +66,7 @@ export default function SignInPage() {
             <div className="flex justify-center mb-4">
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shadow-sm">
                    <Image 
-                     src="/icon-192.png" 
+                     src={Logo}
                      alt="Logo" 
                      fill
                      className="object-cover"
