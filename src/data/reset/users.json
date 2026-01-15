@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "695e5b8874f95994390cdac6",
+    "username": "ADAM",
+    "__v": 0,
+    "createdAt": "2026-01-07T13:11:36.388Z",
+    "name": "Adam",
+    "password": "$2b$10$DKgXq5bm/cQ5NwDc7/9ez.VroV7FXeD.lxyL46Ltk/rJbHMps.snO",
+    "updatedAt": "2026-01-14T04:09:29.774Z"
+  },
+  {
+    "_id": "695e5b8874f95994390cdac7",
+    "username": "SASTI",
+    "__v": 0,
+    "createdAt": "2026-01-07T13:11:36.416Z",
+    "name": "Sasti VJ",
+    "password": "$2b$10$0N8dLi1OimCjMkjfVizEJupyZeqAixPCCcYMTKTM4h5Im9iEKHQEu",
+    "updatedAt": "2026-01-14T04:18:14.491Z"
+  }
+]

@@ -1,8 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IBudgetItem extends Document {
-  project: mongoose.Types.ObjectId;
-  itemName: string;
+  name: string;
   groupName?: string;
   plannedAmount: number;
   isDeleted: boolean;

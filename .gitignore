@@ -45,3 +45,6 @@ src/scripts/seed.ts
 
 # documentation
 /documentation
+
+# backup
+/src/data/backup

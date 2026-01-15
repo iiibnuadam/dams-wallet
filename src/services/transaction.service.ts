@@ -8,7 +8,6 @@ import "@/models/Goal"; // Register Goal schema
 import "@/models/Category"; // Register Category schema
 import "@/models/User"; // Register User schema
 import "@/models/Wallet"; // Register Wallet schema
-import "@/models/Project"; // Register Project schema
 import "@/models/Routine"; // Register Routine schema
 
 export async function createTransaction(data: Partial<ITransaction>) {

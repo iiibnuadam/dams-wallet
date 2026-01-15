@@ -5,7 +5,6 @@ import Transaction from "@/models/Transaction";
 import Goal from "@/models/Goal";
 import GoalItem from "@/models/GoalItem";
 import MonthlyBudget from "@/models/MonthlyBudget";
-import Project from "@/models/Project";
 import BudgetItem from "@/models/BudgetItem";
 import Debt from "@/models/Debt";
 import Routine from "@/models/Routine";
@@ -21,7 +20,6 @@ export async function POST() {
         Goal.deleteMany({}),
         GoalItem.deleteMany({}),
         MonthlyBudget.deleteMany({}),
-        Project.deleteMany({}),
         BudgetItem.deleteMany({}),
         Debt.deleteMany({}),
         Routine.deleteMany({}),
@@ -35,12 +33,10 @@ export async function POST() {
             transactions: deletions[0].deletedCount,
             goals: deletions[1].deletedCount,
             goalItems: deletions[2].deletedCount,
-            budgets: deletions[3].deletedCount,
-            projects: deletions[4].deletedCount,
-            budgetItems: deletions[5].deletedCount,
-            debts: deletions[6].deletedCount,
-            routines: deletions[7].deletedCount,
-            wallets: deletions[8].deletedCount
+            budgetItems: deletions[4].deletedCount,
+            debts: deletions[5].deletedCount,
+            routines: deletions[6].deletedCount,
+            wallets: deletions[7].deletedCount
         }
     });
   } catch (error: any) {

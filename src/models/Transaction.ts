@@ -11,7 +11,6 @@ export interface ITransaction extends Document {
   wallet: mongoose.Types.ObjectId;
   targetWallet?: mongoose.Types.ObjectId;
   category?: mongoose.Types.ObjectId;
-  project?: mongoose.Types.ObjectId;
   budgetItem?: mongoose.Types.ObjectId;
   goalItem?: mongoose.Types.ObjectId;
   paymentPhase?: PaymentPhase;
