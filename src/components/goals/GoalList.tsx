@@ -3,11 +3,22 @@
 import { useGoals } from "@/hooks/useGoals";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Target, Calendar, Share2, Wallet, TrendingDown, CheckCircle2, Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+import { User, Users, Target, Calendar, Share2, Wallet, TrendingDown, CheckCircle2, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 import { GoalListSkeleton } from "@/components/skeletons";
 
 export function GoalList() {
-    const { data: rawGoals, isLoading } = useGoals();
+    const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    
+    const currentUser = session?.user?.username || "ADAM";
+    const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
+    const currentView = searchParams.get("view") || currentUser;
+    
+    const { data: rawGoals, isLoading } = useGoals(currentView);
     const goals = Array.isArray(rawGoals) ? rawGoals : [];
 
     if (isLoading) {
@@ -19,18 +30,85 @@ export function GoalList() {
         console.error("GoalList: Data is not an array", rawGoals);
     }
 
-    if (goals.length === 0) {
+    if (goals.length === 0 && !isLoading) {
         return (
-          <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-3xl border border-dashed">
-            <Target className="w-16 h-16 mx-auto mb-4 opacity-20" />
-            <p className="text-lg font-medium">No goals found</p>
-            <p className="text-sm opacity-70">Create a new goal to start your journey!</p>
+          <div className="space-y-6">
+             {/* Filter Controls (Even if empty, so we can switch back) */}
+             <div className="flex justify-end">
+                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                    {[currentUser, partnerUser, "ALL"].map((v) => {
+                            const isActive = currentView === v;
+                            const newParams = new URLSearchParams(searchParams.toString());
+                            newParams.set("view", v);
+                            
+                            let label = "All";
+                            if (v === currentUser) label = "My Goals";
+                            if (v === partnerUser) label = "Partner";
+
+                            return (
+                            <Link 
+                                key={v}
+                                href={`/goals?${newParams.toString()}`}
+                                className={cn(
+                                    "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                    isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                )}
+                                replace={true}
+                            >
+                                {v === currentUser && <User className="w-3 h-3" />}
+                                {v === partnerUser && <Users className="w-3 h-3" />}
+                                {label}
+                            </Link>
+                            );
+                    })}
+                </div>
+             </div>
+
+             <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-3xl border border-dashed">
+                <Target className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                <p className="text-lg font-medium">No goals found</p>
+                <p className="text-sm opacity-70">
+                    Switch user or create a new goal.
+                </p>
+             </div>
           </div>
         );
     }
 
     return (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in fade-in duration-500">
+        <div className="space-y-6">
+             {/* Filter Controls */}
+             <div className="flex justify-end">
+                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                    {[currentUser, partnerUser, "ALL"].map((v) => {
+                            const isActive = currentView === v;
+                            const newParams = new URLSearchParams(searchParams.toString());
+                            newParams.set("view", v);
+                            
+                            let label = "All";
+                            if (v === currentUser) label = "My Goals";
+                            if (v === partnerUser) label = "Partner";
+
+                            return (
+                            <Link 
+                                key={v}
+                                href={`/goals?${newParams.toString()}`}
+                                className={cn(
+                                    "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                    isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                )}
+                                replace={true}
+                            >
+                                {v === currentUser && <User className="w-3 h-3" />}
+                                {v === partnerUser && <Users className="w-3 h-3" />}
+                                {label}
+                            </Link>
+                            );
+                    })}
+                </div>
+             </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in fade-in duration-500">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {goals.map((goal: any) => {
                const progress = goal.totalEstimated > 0 ? (goal.totalActual / goal.totalEstimated) * 100 : 0;
@@ -168,6 +246,7 @@ export function GoalList() {
                   </Link>
                );
             })}
+            </div>
         </div>
     );
 }

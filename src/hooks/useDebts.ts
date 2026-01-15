@@ -2,11 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { createDebtAction, updateDebtAction, deleteDebtAction, settleDebtAction } from '@/actions/debt';
 
-export function useDebts() {
+export function useDebts(view: string = "ALL") {
   return useQuery({
-    queryKey: ['debts'],
+    queryKey: ['debts', view],
     queryFn: async () => {
-      const response = await apiClient.get('/debts');
+      const response = await apiClient.get(`/debts?view=${view}`);
       return response.data;
     },
   });

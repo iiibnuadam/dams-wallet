@@ -5,10 +5,13 @@ import { authOptions } from "@/lib/auth";
 import * as DebtService from "@/services/debt.service";
 import { revalidatePath } from "next/cache";
 
-export async function getDebtsAction() {
+export async function getDebtsAction(view?: string) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.name) return [];
     
+    // If view is provided, use it. If not, default to current user ID
+    if (view) return DebtService.getDebts(view);
+
     return DebtService.getDebts((session.user as any).id);
 }
 

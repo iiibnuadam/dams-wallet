@@ -305,16 +305,30 @@ export async function deleteGoalPaymentAction(transactionId: string) {
 
 import { getGoals } from "@/services/goal.service";
 
-export async function getGoalsAction() {
+export async function getGoalsAction(view?: string) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
     
-    // Default to user name for ownership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const owner = (session.user as any).id;
+    // Default to user name/ID for ownership if no view specified? 
+    // Previous logic was: getGoals(ownerId). Service logic used that as "CurrentUser" to show Shared + Mine.
+    // New Service logic: getGoals(owner) filters EXACTLY by owner.
+    
+    // So if view is provided, pass it.
+    // If NOT provided, we probably want "My Goals" default?
+    // Or do we want the old "Shared + Mine"? 
+    // The previous service logic `query.$or = [{ visibility: "SHARED" }, { owner: currentUser }]` was unique.
+    // The user wants "My", "Partner", "All".
+    // - "My": owner = Me
+    // - "Partner": owner = Partner
+    // - "All": All goals?
+    
+    // Let's support passing specific View.
+    // If view is missing, default to Current User ID?
+    const currentUserId = (session.user as any).id;
+    const targetView = view || currentUserId;
     
     try {
-        const goals = await getGoals(owner);
+        const goals = await getGoals(targetView);
         // Serialize IDs
         return JSON.parse(JSON.stringify(goals));
     } catch (error) {

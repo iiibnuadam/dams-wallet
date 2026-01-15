@@ -26,16 +26,30 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { updateRoutineAction } from "@/actions/routine";
 
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
+import { User, Users } from "lucide-react";
+
 interface RoutineListProps {
   wallets: any[];
 }
 
 export function RoutineList({ wallets }: RoutineListProps) {
+    const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    
+    const currentUser = session?.user?.username || "ADAM";
+    const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
+    const currentView = searchParams.get("view") || currentUser;
+
     const [routines, setRoutines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchRoutines = () => {
-        getRoutinesAction().then(data => {
+        setLoading(true);
+        getRoutinesAction(currentView).then(data => {
             setRoutines(data);
             setLoading(false);
         });
@@ -43,7 +57,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
 
     useEffect(() => {
         fetchRoutines();
-    }, []);
+    }, [currentView]); // Re-fetch when view changes
 
 
 
@@ -108,11 +122,43 @@ export function RoutineList({ wallets }: RoutineListProps) {
                  </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                    <h2 className="text-lg font-semibold tracking-tight">Active List</h2>
                 </div>
-                <RoutineFormDialog wallets={wallets} onSaved={fetchRoutines} />
+                
+                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                     {/* View Filter */}
+                     <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                        {[currentUser, partnerUser, "ALL"].map((v) => {
+                                const isActive = currentView === v;
+                                const newParams = new URLSearchParams(searchParams.toString());
+                                newParams.set("view", v);
+                                
+                                let label = "All";
+                                if (v === currentUser) label = "My Routines";
+                                if (v === partnerUser) label = "Partner";
+
+                                return (
+                                <Link 
+                                    key={v}
+                                    href={`/routines?${newParams.toString()}`}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                        isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                    )}
+                                    replace={true}
+                                >
+                                    {v === currentUser && <User className="w-3 h-3" />}
+                                    {v === partnerUser && <Users className="w-3 h-3" />}
+                                    {label}
+                                </Link>
+                                );
+                        })}
+                    </div>
+                
+                    <RoutineFormDialog wallets={wallets} onSaved={fetchRoutines} />
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

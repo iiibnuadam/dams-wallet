@@ -66,6 +66,8 @@ export const authOptions: NextAuthOptions = {
             return { 
                 id: user._id.toString(), 
                 name: user.name, 
+                // Return username explicitly for callbacks
+                username: user.username,
                 email: `${user.username.toLowerCase()}@dams.com`, 
                 image: null,
                 role: role,
@@ -86,6 +88,8 @@ export const authOptions: NextAuthOptions = {
         if (user) {
             token.role = user.role;
             token.sub = user.id;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            token.username = (user as any).username;
         }
         return token;
       },
@@ -94,6 +98,8 @@ export const authOptions: NextAuthOptions = {
               // Ensure user ID is available in session
               session.user.id = token.sub; 
               session.user.role = token.role as string;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (session.user as any).username = token.username;
           }
           return session;
       }

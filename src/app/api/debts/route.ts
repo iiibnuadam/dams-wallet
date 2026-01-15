@@ -10,11 +10,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ownerId = (session.user as any).id;
-    const data = await getDebts(ownerId);
+    const { searchParams } = new URL(request.url);
+    const view = searchParams.get("view");
+
+    // If view is provided, use it. Otherwise default to current user (handled by getDebts('ALL') ? No, getDebts(ownerId))
+    const debts = await getDebts(view || (session.user as any).id);
     
-    return NextResponse.json(data);
+    return NextResponse.json(debts);
   } catch (error) {
     console.error("Error fetching debts:", error);
     return NextResponse.json(

@@ -9,13 +9,15 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TransactionSummaryStats } from "@/components/transactions/TransactionSummaryStats";
 
+import { useSession } from "next-auth/react";
+
 export function TransactionsView() {
+    const { data: session } = useSession();
+    const currentUser = session?.user?.username || "ADAM";
+    const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
+
     const searchParams = useSearchParams();
-    const currentView = "ALL"; // Or derive from user session if needed, or pass prop if coming from wrapper. 
-    // Actually, `useWallets` hook fetches wallets based on a VIEW, but the filter dropdown likely wants ALL wallets user has access to, or just "My Wallets". 
-    // If I use "ALL", it fetches potentially everyone's if not careful.
-    // Ideally we assume the user is "ME" context by default for fetching own wallets.
-    // Let's use "ALL" for now as it seems to be the safe default in other files.
+    const currentView = searchParams.get("view") || currentUser;
     
     // Fetch wallets for filtering
     const { data: wallets } = useWallets("ALL");
@@ -45,8 +47,8 @@ export function TransactionsView() {
                         {/* User Filter Controls */}
                         {/* User Filter Controls - Unifying with Budget View logic */}
                         <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg self-start sm:self-auto">
-                            {["ADAM", "SASTI", "ALL"].map((v) => {
-                                    const currentView = searchParams.get("view") || "ADAM"; // Default to ADAM (Me)
+                            {[currentUser, partnerUser, "ALL"].map((v) => {
+                                    const currentView = searchParams.get("view") || currentUser; // Default to Me
                                     const isActive = currentView === v;
                                     
                                     // Construct new query params string
@@ -55,6 +57,10 @@ export function TransactionsView() {
                                     newParams.delete("userFilter"); // Cleanup legacy
                                     newParams.set("page", "1");
                                     
+                                    let label = "All";
+                                    if (v === currentUser) label = "My Activity";
+                                    if (v === partnerUser) label = "Partner";
+
                                     return (
                                     <Link 
                                         key={v}
@@ -66,9 +72,9 @@ export function TransactionsView() {
                                         replace={true}
                                         scroll={false} 
                                     >
-                                        {v === "ADAM" && <User className="w-3 h-3" />}
-                                        {v === "SASTI" && <Users className="w-3 h-3" />}
-                                        {v === "ADAM" ? "My Activity" : v === "SASTI" ? "Partner" : "All"}
+                                        {v === currentUser && <User className="w-3 h-3" />}
+                                        {v === partnerUser && <Users className="w-3 h-3" />}
+                                        {label}
                                     </Link>
                                     );
                             })}
@@ -78,8 +84,8 @@ export function TransactionsView() {
                     {/* Transaction Summary Cards */}
                     <TransactionSummaryStats params={params} />
 
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    <TransactionFilters wallets={wallets as any[] || []} />
+                    {/* List */}
+                    <TransactionFilters wallets={Array.isArray(wallets) ? wallets : []} />
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-1 border dark:border-zinc-800">

@@ -9,9 +9,11 @@ export async function GET(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userId = (session?.user as any)?.id;
 
-    // getGoals service handles "undefined" user by showing shared. 
-    // But ideally we pass userId if logged in.
-    const data = await getGoals(userId);
+    const { searchParams } = new URL(request.url);
+    const view = searchParams.get("view");
+    
+    // Pass view or fallback to userId (service handles "ALL" logic if passed, or specific ID)
+    const data = await getGoals(view || userId);
     
     return NextResponse.json(data);
   } catch (error) {

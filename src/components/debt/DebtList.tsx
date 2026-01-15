@@ -25,8 +25,21 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DebtListSkeleton } from "@/components/skeletons";
 
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
+import { User, Users } from "lucide-react";
+
 export function DebtList() {
-    const { data: debts = [], isLoading } = useDebts();
+    const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    
+    const currentUser = session?.user?.username || "ADAM";
+    const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
+    const currentView = searchParams.get("view") || currentUser;
+
+    const { data: debts = [], isLoading } = useDebts(currentView);
     const { mutateAsync: deleteDebt } = useDeleteDebt();
     const { data: wallets = [] } = useWallets("ALL"); // Fetch wallets for Settle Dialog
 
@@ -226,13 +239,72 @@ export function DebtList() {
 
             <div className="flex items-center justify-between">
                 <Tabs defaultValue="ACTIVE" className="w-full">
-                    <div className="flex items-center justify-between mb-6">
-                         <TabsList>
-                            <TabsTrigger value="ACTIVE">Active</TabsTrigger>
-                            <TabsTrigger value="HISTORY">History</TabsTrigger>
-                        </TabsList>
+                    <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <TabsList className="grid w-full sm:w-auto grid-cols-2">
+                                <TabsTrigger value="ACTIVE">Active</TabsTrigger>
+                                <TabsTrigger value="HISTORY">History</TabsTrigger>
+                            </TabsList>
+                            
+                             {/* View Filter */}
+                             <div className="hidden sm:flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                                {[currentUser, partnerUser, "ALL"].map((v) => {
+                                        const isActive = currentView === v;
+                                        const newParams = new URLSearchParams(searchParams.toString());
+                                        newParams.set("view", v);
+                                        
+                                        let label = "All";
+                                        if (v === currentUser) label = "My Debts";
+                                        if (v === partnerUser) label = "Partner";
+
+                                        return (
+                                        <Link 
+                                            key={v}
+                                            href={`/debts?${newParams.toString()}`}
+                                            className={cn(
+                                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                                isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                            )}
+                                            replace={true}
+                                        >
+                                            {v === currentUser && <User className="w-3 h-3" />}
+                                            {v === partnerUser && <Users className="w-3 h-3" />}
+                                            {label}
+                                        </Link>
+                                        );
+                                })}
+                            </div>
+                        </div>
                         
-                        <DebtFormDialog />
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                            {/* Mobile View Filter */}
+                             <div className="flex sm:hidden bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                                {[currentUser, partnerUser, "ALL"].map((v) => {
+                                        const isActive = currentView === v;
+                                        const newParams = new URLSearchParams(searchParams.toString());
+                                        newParams.set("view", v);
+                                        
+                                        let label = "All";
+                                        if (v === currentUser) label = "My";
+                                        if (v === partnerUser) label = "Partner";
+
+                                        return (
+                                        <Link 
+                                            key={v}
+                                            href={`/debts?${newParams.toString()}`}
+                                            className={cn(
+                                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                                isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                            )}
+                                            replace={true}
+                                        >
+                                            {label}
+                                        </Link>
+                                        );
+                                })}
+                            </div>
+                            <DebtFormDialog />
+                        </div>
                     </div>
 
                     <TabsContent value="ACTIVE" className="space-y-8">

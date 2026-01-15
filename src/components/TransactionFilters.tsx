@@ -22,6 +22,7 @@ interface TransactionFiltersProps {
 }
 
 export function TransactionFilters({ wallets, showWalletFilter = true }: TransactionFiltersProps) {
+    const safeWallets = Array.isArray(wallets) ? wallets : [];
     const router = useRouter();
     const searchParams = useSearchParams();
     
@@ -335,7 +336,7 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
                                         <SelectTrigger className="h-9 text-xs w-full"><SelectValue placeholder="All Wallets" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="ALL">All Wallets</SelectItem>
-                                            {wallets.map(w => <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>)}
+                                            {safeWallets.map(w => <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -47,19 +47,50 @@ import { cache } from "react";
 // Filtering logic:
 // - If SHARED: Accessible to all (or check sharedWith if we restricted it later)
 // - If PRIVATE: Accessible only if owner === currentUser
-export const getGoals = cache(async (currentUser?: string) => {
+export const getGoals = cache(async (owner?: string) => {
   await dbConnect();
   
   const query: any = {};
-  if (currentUser) {
-      query.$or = [
-          { visibility: "SHARED" },
-          { owner: currentUser }
-      ];
+  
+  if (owner && owner !== "ALL") {
+      const mongoose = (await import("mongoose")).default;
+      if (mongoose.Types.ObjectId.isValid(owner)) {
+           // If ID provided, might be user ID. 
+           // BUT logic for goals was: SHARED vs PRIVATE.
+           // If I want to see "My Goals", I want goals where owner == ME.
+           // If "Partner", goals where owner == PARTNER (and visibility is SHARED? Or just everything if authorized?)
+           // For simplicity in this app:
+           // - My Goals: owner = Me
+           // - Partner Goals: owner = Partner
+           // - All: undefined? Or owner = Me OR Partner
+           
+           // If filtering by specific owner ID:
+           const ownerId = new mongoose.Types.ObjectId(owner);
+           query.$or = [
+               { owner: ownerId },
+               { visibility: "SHARED" }
+           ];
+      } else {
+           // Resolve username
+           const { default: User } = await import("@/models/User");
+           const user = await User.findOne({ username: { $regex: new RegExp(`^${owner}$`, "i") } }).select("_id");
+           if (user) {
+               query.$or = [
+                   { owner: user._id },
+                   { visibility: "SHARED" }
+               ];
+           } else {
+               return []; // User not found
+           }
+      }
   } else {
-      // If no user context, maybe just show SHARED? Or show none?
-      // For safety, let's show only SHARED
-      query.visibility = "SHARED";
+      // If "ALL" or undefined, maybe default to implicit logic?
+      // Previously default was "SHARED".
+      // But now "ALL" should probably mean "Mine + Shared" or "Mine + Partner's Shared".
+      // Let's stick to "ALL" = NO FILTER on owner (show all in DB? No, constrained by auth usually).
+      // But this function is service level.
+      // If owner is "ALL", let's return everything (assuming caller handles auth context if needed, but here we just want list).
+      // Actually, standard behavior in other services for "ALL" was returning everything.
   }
 
   // const goals = await Goal.find(query).sort({ targetDate: 1 }).lean();

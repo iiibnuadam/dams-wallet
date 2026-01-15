@@ -12,12 +12,12 @@ import {
 // Ah, `PayGoalItemDialog` likely uses `createTransactionAction` but with goalItem field.
 // I'll check `PayGoalItemDialog` later. For now, add item management hooks.
 
-export function useGoals() {
+export function useGoals(view: string = "ALL") {
   return useQuery({
-    queryKey: ['goals'],
+    queryKey: ['goals', view],
     queryFn: async () => {
-      // apiClient baseURL is '/api', so 'goals' -> '/api/goals'   
-      const response = await apiClient.get('goals');
+      // apiClient baseURL is '/api', so 'goals' -> '/api/goals?view=...'
+      const response = await apiClient.get(`goals?view=${view}`);
       return response.data;
     },
     refetchOnWindowFocus: false,

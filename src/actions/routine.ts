@@ -53,9 +53,12 @@ export async function createRoutineAction(data: any) {
     }
 }
 
-export async function getRoutinesAction() {
+export async function getRoutinesAction(view?: string) {
      const session = await getServerSession(authOptions);
      if (!session || !session.user || !session.user.name) return [];
+     
+     // If view is provided, use it. If not, default to current user ID (backward compatibility)
+     if (view) return RoutineService.getRoutines(view);
      
      return RoutineService.getRoutines((session.user as any).id);
 }

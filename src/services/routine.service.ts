@@ -15,10 +15,25 @@ export async function createRoutine(data: Partial<IRoutine>) {
     return { success: true, data: JSON.parse(JSON.stringify(routine)) };
 }
 
-export async function getRoutines(username?: string) {
+export async function getRoutines(owner?: string) {
     await dbConnect();
     const query: any = {};
-    if (username) query.owner = username;
+    
+    if (owner && owner !== "ALL") {
+        const mongoose = (await import("mongoose")).default;
+        if (mongoose.Types.ObjectId.isValid(owner)) {
+             query.owner = new mongoose.Types.ObjectId(owner);
+        } else {
+             // Resolve username
+             const { default: User } = await import("@/models/User");
+             const user = await User.findOne({ username: { $regex: new RegExp(`^${owner}$`, "i") } }).select("_id");
+             if (user) {
+                 query.owner = user._id;
+             } else {
+                 return []; // User not found
+             }
+        }
+    }
     
     const routines = await Routine.find(query).sort({ nextRun: 1 }).populate("owner", "username name").lean();
     return JSON.parse(JSON.stringify(routines));

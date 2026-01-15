@@ -6,10 +6,31 @@ import { AddWalletDialog } from "@/components/AddWalletDialog";
 import { Wallet } from "lucide-react";
 import { WalletListSkeleton } from "@/components/skeletons";
 
-export function WalletList() {
-    const { data: wallets = [], isLoading } = useWallets("ALL");
+import { useSearchParams } from "next/navigation";
+import { User, Users } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
-    if (isLoading) return <WalletListSkeleton />;
+import { useSession } from "next-auth/react";
+
+export function WalletList() {
+    const { data: session, status } = useSession();
+    const searchParams = useSearchParams();
+    
+    // Dynamic User Logic
+    const currentUser = session?.user?.username || "ADAM";
+    // Assuming 'Partner' is the 'other' user. Ideally we fetch partner from DB or config.
+    // For now, let's hardcode the toggle logic based on who is logged in.
+    // If ADAM is logged in -> Partner is SASTI.
+    // If SASTI is logged in -> Partner is ADAM.
+    const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
+
+    const currentView = searchParams.get("view") || currentUser;
+    
+    // Fetch with current view
+    const { data: wallets = [], isLoading } = useWallets(currentView);
+
+    if (isLoading || status === "loading") return <WalletListSkeleton />;
 
     // Calculate Stats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,7 +53,37 @@ export function WalletList() {
                 </h1>
                 <p className="text-muted-foreground">Manage your financial accounts.</p>
                 </div>
-                <AddWalletDialog />
+                <div className="flex gap-4 items-center">
+                    {/* View Filter */}
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                        {[currentUser, partnerUser, "ALL"].map((v) => {
+                                const isActive = currentView === v;
+                                const newParams = new URLSearchParams(searchParams.toString());
+                                newParams.set("view", v);
+                                
+                                let label = "All";
+                                if (v === currentUser) label = "My Wallets";
+                                if (v === partnerUser) label = "Partner";
+
+                                return (
+                                <Link 
+                                    key={v}
+                                    href={`/wallets?${newParams.toString()}`}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                                        isActive ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                    )}
+                                    replace={true}
+                                >
+                                    {v === currentUser && <User className="w-3 h-3" />}
+                                    {v === partnerUser && <Users className="w-3 h-3" />}
+                                    {label}
+                                </Link>
+                                );
+                        })}
+                    </div>
+                    <AddWalletDialog />
+                </div>
             </div>
 
             {/* Summary Cards */}
