@@ -342,7 +342,8 @@ export const BudgetService = {
                     // NEW: Dynamic Group Matching (Filtered by Bucket/Type)
                     // If the group has a "targetGroup" (e.g. Food), we implicitly respect the Budget Group's "TYPE" (Needs/Wants)
                     // So "Food" in "Needs" section only counts "Food" categories that are "Needs".
-                    gSpent = getSpentForGroup(gTargetGroup, gType);
+                    // UPDATE: User requested to lax this. "Food" budget should count ALL "Food" spending regardless of type.
+                    gSpent = getSpentForGroup(gTargetGroup);
                 } else {
                     // OLD: Specific Category Matching
                     const gCats = (group as any).categories || [];
