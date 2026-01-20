@@ -159,6 +159,14 @@ export async function getWalletById(id: string) {
           },
         },
         {
+          $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "ownerDetails"
+          }
+        },
+        {
           $project: {
             transactions: 0, 
           },
@@ -172,7 +180,8 @@ export async function getWalletById(id: string) {
           ...wallet,
           _id: wallet._id.toString(),
           owner: wallet.owner?.toString(),
-          ownerDetails: undefined, // Leak prevention
+          ownerDetails: undefined,
+          ownerName: wallet.ownerDetails?.[0]?.name || "Unknown",
           liabilityDetails: wallet.liabilityDetails ? {
             ...wallet.liabilityDetails,
             startDate: wallet.liabilityDetails.startDate ? new Date(wallet.liabilityDetails.startDate).toISOString() : undefined
@@ -190,7 +199,7 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
   
   // 1. Determine Date Range
   let start: Date, end: Date;
-  let mode = searchParams.mode || "MONTH";
+  const mode = searchParams.mode || "MONTH";
 
   if (mode === "MONTH") {
       const monthStr = searchParams.month || new Date().toISOString().slice(0, 7);
@@ -487,7 +496,7 @@ export async function getWalletAnalyticsData(walletId: string, searchParams: any
           isTransfer: t.isTransfer,
           relatedTransaction: t.relatedTransactionId ? {
               _id: t.relatedTransactionId._id.toString(),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               wallet: t.relatedTransactionId.wallet ? {
                   name: t.relatedTransactionId.wallet.name,
                   _id: t.relatedTransactionId.wallet._id.toString()

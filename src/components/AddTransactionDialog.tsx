@@ -117,6 +117,22 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
     },
   });
 
+  // Sync wallet selection with URL params or props when dialog opens
+  useEffect(() => {
+      if (open) {
+           const targetWalletId = defaultWalletId || (params?.id as string);
+           // Only set if we have a target and it exists in our list
+           if (targetWalletId && Array.isArray(wallets)) {
+                const isValidWallet = wallets.some(w => w._id === targetWalletId);
+                if (isValidWallet) {
+                     form.setValue("wallet", targetWalletId);
+                     return
+                }
+           }
+           form.setValue("wallet", "");
+      }
+  }, [open, params?.id, defaultWalletId, wallets, form]);
+
   const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {

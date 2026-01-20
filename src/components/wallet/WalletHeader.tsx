@@ -29,9 +29,9 @@ export async function WalletHeader({ id }: { id: string }) {
                         <div>
                              <div className="flex items-center gap-2 mb-1 opacity-80">
                                 <span className="uppercase tracking-wider text-xs font-semibold">{wallet.type}</span>
-                                {wallet.owner && (
+                                {wallet.ownerName && (
                                     <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
-                                        <User className="w-3 h-3" /> {wallet.owner}
+                                        <User className="w-3 h-3" /> {wallet.ownerName || "Unknown"}
                                     </span>
                                 )}
                              </div>
