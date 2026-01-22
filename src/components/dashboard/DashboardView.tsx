@@ -9,7 +9,7 @@ import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
 import { GoalStatus } from "@/components/dashboard/GoalStatus";
 import { SimpleWalletItem } from "@/components/SimpleWalletItem";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, TrendingUp, TrendingDown, History } from "lucide-react";
 import Link from "next/link";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { useSearchParams } from "next/navigation";
@@ -175,15 +175,70 @@ function DashboardContent({ data, wallets, currentView, params }: { data: any, w
                      periodLabel = "Selected Period";
                  }
 
-                 return (
-                     <MonthlySummary 
-                        income={summary.income} 
-                        expense={summary.expense} 
-                        net={summary.net} 
-                        periodLabel={periodLabel}
-                     />
-                 );
-             })()}
+                     return (
+                         <div className="space-y-6">
+                             <MonthlySummary 
+                                income={summary.income} 
+                                expense={summary.expense} 
+                                net={summary.net} 
+                                periodLabel={periodLabel}
+                             />
+
+                             {/* Real Cashflow Section */}
+                             <div className="grid gap-4 md:grid-cols-2">
+                                 {/* Real Income Card */}
+                                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950/20 dark:to-indigo-900/10 border border-indigo-100 dark:border-indigo-900/50 p-6">
+                                     <div className="absolute top-0 right-0 p-4 opacity-10">
+                                         <TrendingUp className="w-24 h-24 text-indigo-600" />
+                                     </div>
+                                     <div className="relative z-10">
+                                         <div className="flex items-center justify-between mb-2">
+                                             <h3 className="text-sm font-medium text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">Real Income</h3>
+                                             <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full bg-indigo-100/50 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400" asChild>
+                                                    <Link href={`/transactions?${new URLSearchParams({ ...params, type: "INCOME", excludeTransfers: "true" }).toString()}`}>
+                                                        <History className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                             </div>
+                                         </div>
+                                         <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(summary.realIncome || 0)}
+                                         </div>
+                                         <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80 mt-1">
+                                             Excluding transfers
+                                         </p>
+                                     </div>
+                                 </div>
+
+                                 {/* Real Expense Card */}
+                                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/10 border border-orange-100 dark:border-orange-900/50 p-6">
+                                     <div className="absolute top-0 right-0 p-4 opacity-10">
+                                         <TrendingDown className="w-24 h-24 text-orange-600" />
+                                     </div>
+                                     <div className="relative z-10">
+                                         <div className="flex items-center justify-between mb-2">
+                                             <h3 className="text-sm font-medium text-orange-800 dark:text-orange-400 uppercase tracking-wider">Real Expense</h3>
+                                             <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full bg-orange-100/50 hover:bg-orange-200 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400" asChild>
+                                                    <Link href={`/transactions?${new URLSearchParams({ ...params, type: "EXPENSE", excludeTransfers: "true" }).toString()}`}>
+                                                        <History className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                             </div>
+                                         </div>
+                                         <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(summary.realExpense || 0)}
+                                         </div>
+                                         <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">
+                                             Excluding transfers
+                                         </p>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     );
+                 })()}
         </section>
 
         {/* Goals Section */}

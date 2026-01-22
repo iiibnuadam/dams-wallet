@@ -20,9 +20,14 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
   let start: Date, end: Date;
   
   // Parse Search Params if provided
-  if (searchParams?.mode === "RANGE" && searchParams.startDate && searchParams.endDate) {
-      start = startOfDay(new Date(searchParams.startDate));
-      end = endOfDay(new Date(searchParams.endDate));
+  if ((searchParams?.mode === "RANGE" || searchParams?.mode === "PRESET") && searchParams.startDate && searchParams.endDate) {
+      const startStr = String(searchParams.startDate);
+      const endStr = String(searchParams.endDate);
+      const isStartExact = startStr.includes("T");
+      const isEndExact = endStr.includes("T");
+
+      start = isStartExact ? new Date(searchParams.startDate) : startOfDay(new Date(searchParams.startDate));
+      end = isEndExact ? new Date(searchParams.endDate) : endOfDay(new Date(searchParams.endDate));
   } else if (searchParams?.mode === "WEEK" && searchParams.week) {
       const date = parse(searchParams.week, "RRRR-'W'II", new Date(), { weekStartsOn: 1 });
       start = startOfWeek(date, { weekStartsOn: 1 });
@@ -108,6 +113,7 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
               date: 1,
               wallet: 1,
               targetWallet: 1,
+              isTransfer: 1,
               isMySource: { 
                   $cond: { 
                       if: { $literal: isGlobalView }, then: true, else: { $in: ["$wallet", myWalletIds] } 
@@ -143,6 +149,30 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
                                       { $or: [
                                           { $and: [{ $eq: ["$type", "EXPENSE"] }, { $eq: ["$isMySource", true] }] },
                                           { $and: [{ $eq: ["$type", "TRANSFER"] }, { $eq: ["$isMySource", true] }, { $eq: ["$isMyTarget", false] }] }
+                                      ]},
+                                      "$amount", 0
+                                  ]
+                              }
+                          },
+                          realIncome: {
+                              $sum: {
+                                  $cond: [
+                                      { $and: [
+                                          { $eq: ["$type", "INCOME"] }, 
+                                          { $eq: ["$isMySource", true] },
+                                          { $ne: [{ $ifNull: ["$isTransfer", false] }, true] }
+                                      ]},
+                                      "$amount", 0
+                                  ]
+                              }
+                          },
+                          realExpense: {
+                              $sum: {
+                                  $cond: [
+                                      { $and: [
+                                          { $eq: ["$type", "EXPENSE"] }, 
+                                          { $eq: ["$isMySource", true] },
+                                          { $ne: [{ $ifNull: ["$isTransfer", false] }, true] }
                                       ]},
                                       "$amount", 0
                                   ]
@@ -239,6 +269,8 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
   
   const income = result.summary[0]?.income || 0;
   const expense = result.summary[0]?.expense || 0;
+  const realIncome = result.summary[0]?.realIncome || 0;
+  const realExpense = result.summary[0]?.realExpense || 0;
   const incomeByCategory = result.incomeByCat;
   const expenseByCategory = result.expenseByCat;
   
@@ -345,6 +377,8 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
       summary: {
           income,
           expense,
+          realIncome,
+          realExpense,
           net: income - expense,
           avgDailyIncome: income / daysDiff,
           avgDailyExpense: expense / daysDiff
@@ -373,7 +407,7 @@ export async function getDashboardData(owner?: string, searchParams: any = {}) {
         isTransfer: t.isTransfer,
         relatedTransaction: t.relatedTransactionId ? {
             _id: t.relatedTransactionId._id.toString(),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             wallet: t.relatedTransactionId.wallet ? {
                 name: t.relatedTransactionId.wallet.name,
                 _id: t.relatedTransactionId.wallet._id.toString()
@@ -568,7 +602,7 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
         if (!trendMap.has(key)) trendMap.set(key, { income: 0, expense: 0 });
         const entry = trendMap.get(key)!;
         
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const isSource = txn.wallet.toString() === walletId;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isTarget = (txn as any).targetWallet?.toString() === walletId;
@@ -628,7 +662,7 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
        monthlyTrend,
        dailyTrend,
        // Serialize Transactions
-       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        
        // eslint-disable-next-line @typescript-eslint/no-explicit-any
        transactions: transactions.map((t: any) => ({
           ...t,
@@ -647,7 +681,7 @@ export async function getWalletAnalytics(walletId: string, searchParams: any) {
           isTransfer: t.isTransfer,
           relatedTransaction: t.relatedTransactionId ? {
               _id: t.relatedTransactionId._id.toString(),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               wallet: t.relatedTransactionId.wallet ? {
                   name: t.relatedTransactionId.wallet.name,
                   _id: t.relatedTransactionId.wallet._id.toString()

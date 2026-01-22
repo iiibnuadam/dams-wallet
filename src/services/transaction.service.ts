@@ -87,11 +87,18 @@ export async function getTransactions(params: any) {
             $gte: startOfMonth(date),
             $lte: endOfMonth(date)
         };
-    } else if (mode === "RANGE") {
+    } else if (mode === "RANGE" || (mode === "PRESET" && params.startDate && params.endDate)) {
         if (params.startDate && params.endDate) {
+            const startStr = String(params.startDate);
+            const endStr = String(params.endDate);
+            
+            // Check if ISODate (has time component)
+            const isStartExact = startStr.includes("T");
+            const isEndExact = endStr.includes("T");
+
             query.date = {
-                $gte: startOfDay(new Date(params.startDate)),
-                $lte: endOfDay(new Date(params.endDate))
+                $gte: isStartExact ? new Date(params.startDate) : startOfDay(new Date(params.startDate)),
+                $lte: isEndExact ? new Date(params.endDate) : endOfDay(new Date(params.endDate))
             };
         }
     }
@@ -108,6 +115,15 @@ export async function getTransactions(params: any) {
             query.goalItem = { $exists: true, $ne: null };
         } else {
             query.type = params.type;
+        }
+    }
+
+    if (params.excludeTransfers) {
+        query.isTransfer = { $ne: true };
+        // also exclude type=TRANSFER just in case, though isTransfer should cover it if consistent,
+        // but let's be safe: real income/expense should NOT be type=TRANSFER
+        if (!params.type) {
+             query.type = { $ne: "TRANSFER" };
         }
     }
 
@@ -349,7 +365,7 @@ export async function getTransactions(params: any) {
         isTransfer: t.isTransfer,
         relatedTransaction: t.relatedTransactionId ? {
             _id: t.relatedTransactionId._id.toString(),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             wallet: t.relatedTransactionId.wallet ? {
                 name: t.relatedTransactionId.wallet.name,
                 _id: t.relatedTransactionId.wallet._id.toString()
