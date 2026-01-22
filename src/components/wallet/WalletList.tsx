@@ -33,10 +33,16 @@ export function WalletList() {
     if (isLoading || status === "loading") return <WalletListSkeleton />;
 
     // Calculate Stats
+    // Ensure wallets is an array to prevent runtime errors
+    const safeWallets = Array.isArray(wallets) ? wallets : [];
+    if (!Array.isArray(wallets)) {
+        console.error("WalletList: wallets data is not an array:", wallets);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const assets = wallets.filter((w: any) => w.type !== "LIABILITY");
+    const assets = safeWallets.filter((w: any) => w.type !== "LIABILITY");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const liabilities = wallets.filter((w: any) => w.type === "LIABILITY");
+    const liabilities = safeWallets.filter((w: any) => w.type === "LIABILITY");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const totalAssets = assets.reduce((sum: number, w: any) => sum + (w.currentBalance ?? w.initialBalance ?? 0), 0);
@@ -45,24 +51,24 @@ export function WalletList() {
 
     return (
         <section className="space-y-6">
-                <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                    My Wallets
-                    <Wallet className="w-6 h-6" />
-                </h1>
-                <p className="text-muted-foreground">Manage your financial accounts.</p>
+                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        My Wallets
+                        <Wallet className="w-6 h-6" />
+                    </h1>
+                    <p className="text-muted-foreground">Manage your financial accounts.</p>
                 </div>
-                <div className="flex gap-4 items-center">
+                <div className="flex gap-4 items-center w-full md:w-auto justify-between md:justify-end">
                     {/* View Filter */}
                     <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
                         {[currentUser, partnerUser, "ALL"].map((v) => {
-                                const isActive = currentView === v;
-                                const newParams = new URLSearchParams(searchParams.toString());
-                                newParams.set("view", v);
-                                
-                                let label = "All";
-                                if (v === currentUser) label = "My Wallets";
+                            const isActive = currentView === v;
+                            const newParams = new URLSearchParams(searchParams.toString());
+                            newParams.set("view", v);
+                            
+                            let label = "All";
+                            if (v === currentUser) label = "My Wallets";
                                 if (v === partnerUser) label = "Partner";
 
                                 return (
