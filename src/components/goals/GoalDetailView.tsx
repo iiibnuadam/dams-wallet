@@ -254,7 +254,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
             <AccordionItem 
                 value={node._id} 
                 className={cn(
-                    "border-none mb-6 rounded-2xl overflow-hidden shadow-xl shadow-black/5 transition-all duration-300",
+                    "border-none mb-4 md:mb-6 rounded-[20px] md:rounded-2xl overflow-hidden shadow-xl shadow-black/5 transition-all duration-300",
                     // Glassmorphism Card Style for Top Level
                     level === 0 
                         ? "bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10" 
@@ -262,7 +262,13 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                 )}
             >
                 <div className="relative group/accordion-trigger w-full">
-                    <div className="flex w-full items-stretch">
+                    <div className={cn(
+                        "flex w-full items-stretch transition-all",
+                        // Glass Header Style applied to wrapper instead of trigger
+                        level === 0 
+                            ? "bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10" 
+                            : "bg-white/5 hover:bg-white/10 dark:bg-white/[0.02] dark:hover:bg-white/5"
+                    )}>
                         {/* Indentation Spacer */}
                         {level > 0 && (
                             <div 
@@ -272,32 +278,31 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                         )}
                         
                         {/* Indicator Strip */}
-                        <div className="w-1.5 shrink-0" style={{ backgroundColor: node.color || goalColor }} />
+                        <div className="w-1.5 shrink-0 transition-colors" style={{ backgroundColor: node.color || goalColor }} />
 
                         <AccordionTrigger className={cn(
-                            "hover:no-underline pl-4 pr-5 flex-1 relative overflow-hidden group/header transition-all w-full",
-                            // Glass Header Style
-                            level === 0 
-                                ? "bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 py-4" 
-                                : "bg-white/5 hover:bg-white/10 dark:bg-white/[0.02] dark:hover:bg-white/5 py-3"
+                            "hover:no-underline pl-3 pr-4 md:pl-4 flex-1 relative overflow-hidden group/header w-full",
+                            // Use transparent background as it is now governed by the flex wrapper
+                            level === 0 ? "py-3 md:py-4" : "py-2.5 md:py-3",
+                            "bg-transparent hover:bg-transparent"
                         )}>
                             <div className="flex-1 flex flex-col min-w-0 gap-1.5 md:gap-0 w-full">
                                 {/* Top Row / Desktop Main Row */}
-                                <div className="flex items-center gap-4 w-full">
+                                <div className="flex items-center gap-2 md:gap-4 w-full">
                                     {/* Left: Identity */}
-                                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
                                         <div className={cn(
                                             "rounded-xl flex items-center justify-center shadow-sm border border-white/20 shrink-0 backdrop-blur-md transition-all",
                                             "bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-white/5",
                                             // Smaller icon for nested groups
-                                            level === 0 ? "w-10 h-10 text-xl" : "w-8 h-8 text-base"
+                                            level === 0 ? "w-8 h-8 md:w-10 md:h-10 text-lg md:text-xl" : "w-6 h-6 md:w-8 md:h-8 text-sm md:text-base"
                                         )}>
                                             {node.icon || "📁"}
                                         </div>
                                         <div className="min-w-0 flex flex-col justify-center text-left">
                                              <h4 className={cn(
                                                  "font-bold leading-none tracking-tight whitespace-break-spaces",
-                                                 level === 0 ? "text-lg" : "text-base"
+                                                 level === 0 ? "text-base md:text-lg" : "text-sm md:text-base"
                                              )}>
                                                  {node.name}
                                              </h4>
@@ -307,9 +312,11 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">
                                                     {node.totalItemCount} items
                                                 </span>
+                                                { node.children.length > 0 &&
                                                 <span className="bg-white/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] w-fit">
-                                                    {node.children.length > 0 && ` • ${node.children.length} groups`}
+                                                    {node.children.length} groups
                                                 </span>
+                                                }
                                               </div>
                                                 {/* Group Status Logic */}
                                                 {(() => {
@@ -348,11 +355,11 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                     </div>
 
                                     {/* Mobile Amount Display */}
-                                    <div className="md:hidden flex flex-col items-end shrink-0">
-                                        <span className={cn("font-bold text-base tabular-nums tracking-tight", isOverBudget && "text-red-500 drop-shadow-sm")}>
+                                    <div className="md:hidden flex flex-col items-end shrink-0 pl-1">
+                                        <span className={cn("font-bold text-sm tabular-nums tracking-tight", isOverBudget && "text-red-500 drop-shadow-sm")}>
                                             {formatCurrency(node.totalActual)}
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground opacity-70">
+                                        <span className="text-[9px] text-muted-foreground opacity-70">
                                             of {formatCurrency(node.totalEstimated)}
                                         </span>
                                     </div>
@@ -407,56 +414,14 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                 </div>
                             </AccordionTrigger>
 
-                            {/* Mobile Actions Row (Rendered OUTSIDE Trigger to avoid nested buttons) */}
-                            {isEditMode && (
+                            {/* Actions Overlay - Accessible on Mobile in Edit Mode, Hover on Desktop */}
+                            {node._id !== "unassigned" && (
                                 <div className={cn(
-                                    "md:hidden flex items-center justify-end gap-2 px-4 pb-4 w-full relative z-10",
-                                    // Match background of header but only bottom part? 
-                                    // Or rely on parent container background? Parent row (line 267) has no bg.
-                                    // We should add background to this div to look seamless.
-                                    level === 0 
-                                        ? "bg-white/10 dark:bg-white/5" 
-                                        : "bg-white/5 dark:bg-white/[0.02]"
+                                    "flex items-center gap-1 transition-all duration-200 z-10 pointer-events-auto",
+                                    isEditMode 
+                                        ? "absolute right-3 top-8 md:static md:top-auto md:right-auto md:translate-y-0 opacity-100 scale-100 flex-row bg-white/10 dark:bg-black/20 p-1 rounded-xl md:bg-transparent md:dark:bg-transparent md:p-0 md:rounded-none md:border-none md:shadow-none md:pr-4" 
+                                        : "hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/accordion-trigger:opacity-100 scale-90 group-hover/accordion-trigger:scale-100 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg"
                                 )}>
-                                    <div className="flex items-center gap-2 w-full justify-end border-t border-white/5 pt-3">
-                                        <EditGroupDialog 
-                                            goalId={goal._id} 
-                                            group={{ 
-                                                _id: node._id, 
-                                                name: node.name, 
-                                                color: node.color, 
-                                                icon: node.icon,
-                                                parentGroupId: node.parentGroupId
-                                            }} 
-                                            existingGroups={goal.groups} 
-                                            trigger={
-                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 bg-white/50 dark:bg-white/5 border-white/20 backdrop-blur-sm">
-                                                    <Pencil className="w-3 h-3" />
-                                                    Edit
-                                                </Button>
-                                            }
-                                        />
-                                        <AddGroupDialog 
-                                            goalId={goal._id} 
-                                            parentGroupId={node._id}
-                                            existingGroups={goal.groups} 
-                                            trigger={
-                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 bg-white/50 dark:bg-white/5 border-white/20 backdrop-blur-sm">
-                                                    <Plus className="w-3 h-3" />
-                                                    Add Item
-                                                </Button>
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                        {/* Actions Overlay - Moved OUTSIDE trigger (Desktop Only) */}
-                        {node._id !== "unassigned" && (
-                            <div className={cn(
-                                "hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-1 transition-all duration-200 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg z-10 pointer-events-auto",
-                                isEditMode ? "opacity-100 scale-100" : "opacity-0 group-hover/accordion-trigger:opacity-100 scale-90 group-hover/accordion-trigger:scale-100"
-                            )}>
                                 {!isEditMode ? (
                                     <Button 
                                         size="icon" 
@@ -471,34 +436,22 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                         <History className="w-4 h-4" />
                                     </Button>
                                 ) : (
-                                    <>
-                                        <EditGroupDialog 
-                                            goalId={goal._id} 
-                                    group={{ 
-                                        _id: node._id, 
-                                        name: node.name, 
-                                        color: node.color, 
-                                        icon: node.icon,
-                                        parentGroupId: node.parentGroupId
-                                    }} 
-                                    existingGroups={goal.groups} 
-                                    trigger={
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10">
-                                            <Pencil className="w-3.5 h-3.5" />
-                                        </Button>
-                                    }
-                                />
-                                <AddGroupDialog 
-                                    goalId={goal._id} 
-                                    parentGroupId={node._id}
-                                    existingGroups={goal.groups} 
-                                    trigger={
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10">
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    }
-                                />
-                                    </>
+                                    <EditGroupDialog 
+                                        goalId={goal._id} 
+                                        group={{ 
+                                            _id: node._id, 
+                                            name: node.name, 
+                                            color: node.color, 
+                                            icon: node.icon,
+                                            parentGroupId: node.parentGroupId
+                                        }} 
+                                        existingGroups={goal.groups} 
+                                        trigger={
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10 shrink-0">
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </Button>
+                                        }
+                                    />
                                 )}
                             </div>
                         )}
@@ -558,11 +511,11 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                     <div className="w-1.5 shrink-0 self-stretch" style={{ backgroundColor: node.color || goalColor }} />
 
                                      {/* Main Item Content Container - Matches Header Structure */}
-                                    <div className="flex-1 flex flex-col py-3 px-4 min-w-0 gap-1.5 md:gap-0">
+                                    <div className="flex-1 flex flex-col py-2.5 px-3 md:py-3 md:px-4 min-w-0 gap-1.5 md:gap-0">
                                         {/* Top Row / Desktop Main Row */}
                                         <div className="flex flex-col md:flex-row w-full md:items-center gap-2 md:gap-4">
                                             {/* Mobile Wrapper for Name and Amount */}
-                                            <div className="flex items-center w-full md:w-auto md:contents gap-4 justify-between">
+                                            <div className="flex items-center w-full md:w-auto md:contents gap-2 md:gap-4 justify-between">
                                                 {/* Left: Icon & Name */}
                                                 <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
                                                     {/* Item Icon / Avatar - HIDDEN ON MOBILE */}
@@ -590,13 +543,25 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                     </div>
                                                 </div>
 
-                                                {/* Mobile Amount Display */}
-                                                <div className="md:hidden flex flex-col items-end shrink-0">
-                                                    <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                        {formatCurrency(item.actualAmount)}
+                                                {/* Mobile Amount Display View Only */}
+                                                {!isEditMode && (
+                                                    <div className="md:hidden flex flex-col items-end shrink-0 pl-1">
+                                                        <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                            {formatCurrency(item.actualAmount)}
+                                                        </div>
+                                                        {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                                     </div>
-                                                    {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
-                                                </div>
+                                                )}
+                                                
+                                                {/* Edit mode amounts + status wrapper to enforce row layout properly */}
+                                                {isEditMode && (
+                                                    <div className="md:hidden flex flex-col items-end shrink-0">
+                                                        <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                                            {formatCurrency(item.actualAmount)}
+                                                        </div>
+                                                        {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Right Columns - Desktop Only */}
@@ -621,8 +586,17 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 </div>
                                             </div>
                                             
-                                            {/* Pay Action (Responsive) */}
-                                            <div className={cn(COL_ACTIONS, "flex w-full md:w-auto justify-end mt-1 md:mt-0")}>
+                                            {/* Pay Action (Responsive) & Mobile Edit Actions */}
+                                            <div className={cn(
+                                                COL_ACTIONS, 
+                                                isEditMode ? "flex w-full mt-2 pt-2 border-t border-white/5 justify-between items-center sm:w-auto sm:border-t-0 sm:pt-0 sm:mt-0 sm:justify-end" : "flex w-full md:w-auto justify-end mt-1 md:mt-0"
+                                            )}>
+                                                {/* Explicit Mobile text hint for edit mode */}
+                                                 {isEditMode && (
+                                                     <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider sm:hidden">
+                                                        Edit Item
+                                                     </div>
+                                                 )}
                                                 <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-all scale-100 md:scale-90 md:group-hover/item:scale-100">
                                                      {/* View Mode: Pay Only */}
                                                      {!isEditMode && (
@@ -644,7 +618,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                                 item={item}
                                                                 wallets={wallets as any[]}
                                                                 trigger={
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-500/20 hover:text-emerald-600 rounded-lg text-muted-foreground">
+                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-500/20 hover:text-emerald-600 rounded-lg text-muted-foreground bg-black/5 dark:bg-white/5 md:bg-transparent">
                                                                         <Plus className="w-3.5 h-3.5" />
                                                                     </Button>
                                                                 }
@@ -660,8 +634,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                                 item={item} 
                                                                 existingGroups={goal.groups} 
                                                                 trigger={
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-blue-500/20 hover:text-blue-600 rounded-lg text-muted-foreground">
-                                                                        <Pencil className="w-3 h-3" />
+                                                                    <Button size="sm" variant="outline" className="h-7 text-xs bg-white/50 dark:bg-white/5 sm:w-8 sm:p-0 sm:bg-transparent">
+                                                                        <Pencil className="w-3 h-3 sm:mr-0 mr-1.5" /> <span className="sm:hidden">Edit</span>
                                                                     </Button>
                                                                 }
                                                             />
@@ -670,8 +644,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                                 itemId={item._id} 
                                                                 itemName={item.name} 
                                                                 trigger={
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-red-500/20 hover:text-red-600 rounded-lg text-muted-foreground">
-                                                                        <Trash2 className="w-3 h-3" />
+                                                                    <Button size="sm" variant="outline" className="h-7 text-xs bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 sm:w-8 sm:p-0 sm:bg-transparent sm:border-transparent">
+                                                                        <Trash2 className="w-3 h-3 sm:mr-0 mr-1.5" /> <span className="sm:hidden">Delete</span>
                                                                     </Button>
                                                                 }
                                                             />
@@ -710,19 +684,19 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
     };
 
     return (
-        <div className="min-h-screen max-w-7xl pb-20 py-8 mx-auto space-y-8 animate-in fade-in duration-500">
+        <div className="min-h-screen max-w-7xl pb-20 py-4 md:py-8 mx-auto space-y-4 md:space-y-8 animate-in fade-in duration-500">
         
         {/* Navigation */}
-        <div className="px-4">
+        <div className="px-3 md:px-4">
              <Link href="/goals" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-1" />
                 Back to Goals
             </Link>
         </div>
 
-        <div className="container sm:px-4 space-y-8">
+        <div className="container px-3 sm:px-4 space-y-6 md:space-y-8">
             {/* GLASS + ICON BACKGROUND DESIGN - SAME AS BEFORE */}
-            <div className="px-4">
+            <div className="md:px-4">
                 <div 
                     className="relative overflow-hidden rounded-[32px] shadow-xl transition-all duration-500 group bg-card"
                 >
@@ -739,24 +713,24 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                     </div>
 
                     <div className="relative z-10 backdrop-blur-[2px]"> 
-                        <div className="p-8 sm:p-10 flex flex-col h-full"> 
+                        <div className="p-5 sm:p-8 md:p-10 flex flex-col h-full"> 
                             
                             {/* Header Row */}
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
-                                <div className="flex items-center gap-5">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 md:gap-6 mb-6 md:mb-10">
+                                <div className="flex items-center gap-3 md:gap-5">
                                     <div 
-                                        className="md:w-20 md:h-20 w-16 h-16 rounded-[22px] flex items-center justify-center text-5xl shadow-sm border border-black/5"
+                                        className="md:w-20 md:h-20 w-12 h-12 shrink-0 rounded-[18px] md:rounded-[22px] flex items-center justify-center text-3xl md:text-5xl shadow-sm border border-black/5"
                                         style={{ backgroundColor: `${goalColor}15` }}
                                     >
                                         {goal.icon || "🎯"}
                                     </div>
-                                    <div className="space-y-1">
-                                         <div className="flex items-center gap-3">
-                                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm whitespace-break-spaces">
+                                    <div className="space-y-1 overflow-hidden">
+                                         <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm whitespace-break-spaces leading-tight">
                                                 {goal.name}
                                             </h1>
                                             {goal.visibility === "SHARED" && (
-                                                <div className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                                                <div className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 shrink-0">
                                                     <Share2 className="w-3 h-3" /> Shared
                                                 </div>
                                             )}
@@ -775,12 +749,12 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                             </div>
 
                             {/* Stats */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-end">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 items-end">
                                 <div className="space-y-2">
-                                    <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest pl-1">Total Collected</p>
+                                    <p className="text-muted-foreground text-xs md:text-sm font-bold uppercase tracking-widest pl-1">Total Collected</p>
                                     <div className="flex items-baseline gap-2">
                                         <h2 
-                                            className="text-4xl xl:text-6xl font-black tracking-tighter"
+                                            className="text-3xl sm:text-4xl xl:text-6xl font-black tracking-tighter"
                                             style={{ color: goalColor }}
                                         >
                                             {formatCurrency(totalActual)}
@@ -858,32 +832,42 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
             {/* Content Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="px-4">
-                    <TabsList className="bg-muted/50 p-1 rounded-full border border-border/50 h-auto inline-flex mb-6">
-                        <TabsTrigger value="overview" className="rounded-full px-6 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Overview</TabsTrigger>
-                        <TabsTrigger value="history" className="rounded-full px-6 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all flex items-center gap-2">
+                <div className="px-1 sm:px-4">
+                    <TabsList className="bg-muted/50 p-1 rounded-full border border-border/50 h-auto inline-flex mb-4 md:mb-6">
+                        <TabsTrigger value="overview" className="rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Overview</TabsTrigger>
+                        <TabsTrigger value="history" className="rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all flex items-center gap-1.5 md:gap-2">
                             History
                             {historyFilter.type !== 'ALL' && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
                         </TabsTrigger>
                     </TabsList>
                 </div>
                 
-                <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 focus-visible:outline-none">
+                <TabsContent value="overview" className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 focus-visible:outline-none">
                     {/* Goal Items */}
-                    <div className="px-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
+                    <div className="px-1 sm:px-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
+                            <h3 className="font-bold text-lg md:text-xl tracking-tight flex items-center gap-2">
                                 Budget Breakdown
                             </h3>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Button 
-                                    size="icon" 
+                                    size="sm" 
                                     variant={isEditMode ? "secondary" : "ghost"}
                                     onClick={() => setIsEditMode(!isEditMode)}
-                                    className="h-9 w-9"
+                                    className="h-9 px-3 gap-2"
                                     title={isEditMode ? "Done Editing" : "Manage Goals"}
                                 >
-                                    {isEditMode ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Pencil className="w-4 h-4" />}
+                                    {isEditMode ? (
+                                        <>
+                                           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                           <span className="text-xs font-medium">Done</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Pencil className="w-4 h-4" />
+                                            <span className="text-xs font-medium">Edit</span>
+                                        </>
+                                    )}
                                 </Button>
                                 {isEditMode && (
                                     <>
@@ -909,10 +893,10 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="history" className="animate-in fade-in slide-in-from-bottom-2 duration-500 px-4">
-                    <div className="space-y-6">
+                <TabsContent value="history" className="animate-in fade-in slide-in-from-bottom-2 duration-500 px-1 sm:px-4">
+                    <div className="space-y-4 md:space-y-6">
                         {/* Filter Controls */}
-                        <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar items-center">
+                        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-4 no-scrollbar items-center">
                             <span className="text-xs font-medium text-muted-foreground mr-2 uppercase tracking-wider">Filter:</span>
                             <Button 
                                 variant={historyFilter.type === 'ALL' ? "default" : "outline"} 
