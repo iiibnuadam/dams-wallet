@@ -1,25 +1,17 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export interface IBudgetItemSub {
-  name: string;
-  limit: number;
-  trackingType: "DAILY" | "WEEKLY" | "MONTHLY";
-  categories: mongoose.Types.ObjectId[];
-}
-
-export interface IBudgetGroupItem {
-  name: string;
+export interface IEnvelope {
+  groupName: string;       // matches Category.group (e.g. "Food", "Housing")
   type: "NEEDS" | "WANTS" | "SAVINGS";
   icon: string;
   color: string;
-  items: IBudgetItemSub[];
-  targetGroup?: string; // For auto-sync/simple mode
+  limit: number;
 }
 
 export interface IMonthlyBudget extends Document {
   user: mongoose.Types.ObjectId;
   period: string; // Format "YYYY-MM"
-  groups: IBudgetGroupItem[];
+  envelopes: IEnvelope[];
   income: number;
   isDeleted: boolean;
   createdAt: Date;
@@ -31,34 +23,13 @@ const MonthlyBudgetSchema: Schema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     period: { type: String, required: true },
     income: { type: Number, default: 0 },
-    groups: [
+    envelopes: [
       {
-        name: { type: String, required: true },
+        groupName: { type: String, required: true },
         type: { type: String, enum: ["NEEDS", "WANTS", "SAVINGS"], default: "NEEDS" },
-        icon: { type: String, default: "CircleDollarSign" },
-        color: { type: String, default: "#3b82f6" }, 
-        // Simple/Leaf Mode Fields
+        icon: { type: String, default: "📁" },
+        color: { type: String, default: "#6b7280" },
         limit: { type: Number, default: 0 },
-        trackingType: {
-            type: String,
-            enum: ["DAILY", "WEEKLY", "MONTHLY"],
-            default: "MONTHLY",
-        },
-        targetGroup: { type: String }, // NEW: Matches Category.group
-        categories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
-        // Nested Mode Fields
-        items: [
-            {
-                name: { type: String, required: true },
-                limit: { type: Number, required: true, min: 0 },
-                trackingType: {
-                    type: String,
-                    enum: ["DAILY", "WEEKLY", "MONTHLY"],
-                    default: "MONTHLY",
-                },
-                categories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
-            }
-        ]
       },
     ],
     isDeleted: { type: Boolean, default: false },
