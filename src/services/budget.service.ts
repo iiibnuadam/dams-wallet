@@ -82,6 +82,43 @@ export const BudgetService = {
   },
 
   /**
+   * When a new category is created, ensure its group has an envelope in the
+   * current month's budget. If the group is already budgeted, this is a no-op.
+   */
+  async syncNewCategoryGroup(userId: string, category: any) {
+    if (!category?.group) return; // No group → nothing to sync
+
+    await dbConnect();
+    const period = new Date().toISOString().slice(0, 7); // e.g. "2026-03"
+
+    const budget = await MonthlyBudget.findOne({ user: userId, period, isDeleted: false });
+
+    // If this group already has an envelope, skip
+    if (budget?.envelopes?.some((e: any) => e.groupName === category.group)) return;
+
+    const newEnvelope: IEnvelope = {
+      groupName: category.group,
+      type: (category.bucket as "NEEDS" | "WANTS" | "SAVINGS") || "NEEDS",
+      icon: category.icon || "📁",
+      color: category.color || "#6b7280",
+      limit: 0,
+    };
+
+    if (budget) {
+      budget.envelopes.push(newEnvelope);
+      await budget.save();
+    } else {
+      await MonthlyBudget.create({
+        user: userId,
+        period,
+        income: 0,
+        envelopes: [newEnvelope],
+        isDeleted: false,
+      });
+    }
+  },
+
+  /**
    * Get full budget overview for a given month.
    * Auto-copies envelopes from last month if none exist for this period.
    */
