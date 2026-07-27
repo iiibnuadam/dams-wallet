@@ -31,4 +31,3 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 }
-export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

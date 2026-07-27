@@ -28,7 +28,7 @@ export function useTransactions(params: Record<string, any>, options?: { enabled
           if (value !== undefined && value !== null && String(value) !== "") {
               // Map view to owner, but ignore if it's just a UI tab state like analytics or transactions
               if (key === 'view') {
-                  if (value !== 'analytics' && value !== 'transactions') {
+                  if (String(value) !== 'analytics' && String(value) !== 'transactions') {
                       queryParams.append('owner', String(value));
                   }
               } else {
