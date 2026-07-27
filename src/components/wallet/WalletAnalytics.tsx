@@ -1,16 +1,13 @@
-import { getWalletAnalyticsData } from "@/services/wallet.service";
+import { getWalletAnalytics } from "@/services/dashboard.service";
 import { AnalyticsControls } from "@/components/analytics/AnalyticsControls";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingDown, TrendingUp, History } from "lucide-react";
 import { MonthlySummary } from "@/components/dashboard/MonthlySummary";
 import { DailyTrend } from "@/components/dashboard/DailyTrend";
 import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
-import dbConnect from "@/lib/db";
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function WalletAnalytics({ walletId, searchParams }: { walletId: string, searchParams: any }) {
-    await dbConnect();
-    const { summary, expenseByCategory, incomeByCategory, dailyTrend } = await getWalletAnalyticsData(walletId, { ...searchParams, limit: 15 });
+    const { summary, expenseByCategory, incomeByCategory, dailyTrend } = await getWalletAnalytics(walletId, { ...searchParams, limit: 15 });
 
     return (
         <div className="space-y-6 pt-2">

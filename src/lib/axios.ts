@@ -26,6 +26,9 @@ apiClient.interceptors.request.use(
 // Add a response interceptor
 apiClient.interceptors.response.use(
   (response) => {
+    if (response.data && response.data.code && response.data.data !== undefined) {
+      response.data = response.data.data;
+    }
     return response;
   },
   (error) => {

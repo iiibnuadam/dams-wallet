@@ -23,12 +23,12 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
-import { getCategoriesAction } from "@/actions/category-actions";
+import { CategoryService } from "@/services/category.service";
 import { TransactionType, PaymentPhase } from "@/types/transaction";
 import { toast } from "sonner";
 import { Banknote } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { updateGoalItemCompletionAction } from "@/actions/goal";
+import * as GoalService from "@/services/goal.service";
 import { useCreateTransaction } from "@/hooks/useTransactions";
 
 const formSchema = z.object({
@@ -71,7 +71,7 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
 
         try {
             // 1. Resolve Category
-            const categories = await getCategoriesAction();
+            const categories = await CategoryService.getCategories();
             let targetCategory = categories.find((c: any) => c.name === goalName && c.type === TransactionType.EXPENSE);
             
             if (!targetCategory) {
@@ -82,27 +82,25 @@ export function PayGoalItemDialog({ goalName, item, wallets, trigger }: PayGoalI
             }
 
             // 2. Construct Data
-            const formData = new FormData();
-            formData.append("amount", values.amount.toString());
-            
-            // Format Description: "Payment for [Item] ([Phase])" or custom Note
-            const desc = values.note || `Payment for ${item.name} (${values.paymentPhase})`;
-            formData.append("description", desc);
-            
-            formData.append("type", TransactionType.EXPENSE);
-            formData.append("wallet", values.wallet);
-            formData.append("date", values.date);
+            const payload: any = {
+                amount: Number(values.amount),
+                description: values.note || `Payment for ${item.name} (${values.paymentPhase})`,
+                type: TransactionType.EXPENSE,
+                wallet: values.wallet,
+                date: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
+                goalItem: item._id,
+                paymentPhase: values.paymentPhase
+            };
+
             if (targetCategory) {
-                formData.append("category", targetCategory.id);
+                payload.category = targetCategory._id;
             }
-            formData.append("goalItem", item._id);
-            formData.append("paymentPhase", values.paymentPhase);
 
-            const result = await createTx(formData);
+            const result = await createTx(payload);
 
-            if (result.success) {
+            if (result.code === 200) {
                 if (values.markAsCompleted) {
-                    await updateGoalItemCompletionAction(item._id, true);
+                    await GoalService.setGoalItemCompletion(item._id, true);
                 }
                 
                 toast.success("Payment recorded successfully!");

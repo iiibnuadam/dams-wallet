@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Pencil, Plus, Trash2, Check } from "lucide-react";
-import { updateGroupStyleAction, deleteGoalGroupAction, updateGoalGroupAction, addGoalGroupAction } from "@/actions/goal";
+import * as GoalService from "@/services/goal.service";
 
 // ... (previous code)
 
@@ -153,18 +153,19 @@ export function EditGroupDialog({ goalId, group, existingGroups, trigger }: Edit
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const formData = new FormData();
-            formData.append("name", values.name);
-            if (values.color) formData.append("color", values.color);
-            if (values.icon) formData.append("icon", values.icon);
+            const payload: any = {
+                name: values.name,
+                color: values.color || "",
+                icon: values.icon || "",
+            };
+            
             if (values.parentGroupId && values.parentGroupId !== "root") {
-                formData.append("parentGroupId", values.parentGroupId);
+                payload.parentGroupId = values.parentGroupId;
             } else {
-                 // Explicitly unset parent if root
-                 formData.append("parentGroupId", "");
+                 payload.parentGroupId = "";
             }
 
-            await updateGoalGroupAction(goalId, group._id!, formData);
+            await GoalService.updateGroup(goalId, group._id!, payload);
             
             toast.success("Group updated");
             queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
@@ -176,7 +177,7 @@ export function EditGroupDialog({ goalId, group, existingGroups, trigger }: Edit
 
     async function onDelete() {
          try {
-            await deleteGoalGroupAction(goalId, group._id!);
+            await GoalService.deleteGroup(goalId, group._id!);
             toast.success("Group deleted");
             queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
             setOpen(false);
@@ -329,15 +330,16 @@ export function AddGroupDialog({ goalId, parentGroupId, existingGroups, trigger 
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const formData = new FormData();
-            formData.append("name", values.name);
-            if (values.color) formData.append("color", values.color);
-            if (values.icon) formData.append("icon", values.icon);
+            const payload: any = {
+                name: values.name,
+                color: values.color || "",
+                icon: values.icon || "",
+            };
             if (values.parentGroupId && values.parentGroupId !== "root") {
-                formData.append("parentGroupId", values.parentGroupId);
+                payload.parentGroupId = values.parentGroupId;
             }
 
-            await addGoalGroupAction(goalId, formData);
+            await GoalService.addGroup(goalId, payload);
             
             toast.success("Group created");
             queryClient.invalidateQueries({ queryKey: ['goal', goalId] });

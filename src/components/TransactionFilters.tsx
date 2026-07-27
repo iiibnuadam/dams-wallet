@@ -11,8 +11,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { CalendarIcon, FilterX, X, Search, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCategoriesAction } from "@/actions/category-actions";
-import { getGoalsAction } from "@/actions/goal";
+import { CategoryService } from "@/services/category.service";
+import * as GoalService from "@/services/goal.service";
 import { Badge } from "@/components/ui/badge";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
 
@@ -54,12 +54,16 @@ export function TransactionFilters({ wallets, showWalletFilter = true }: Transac
 
     useEffect(() => {
         const loadCats = async () => {
-            const data = await getCategoriesAction(); 
-            setCategories(data);
+            try {
+                const data = await CategoryService.getCategories(); 
+                setCategories(data);
+            } catch (e) { console.error(e); }
         };
         async function fetchGoals() {
-            const data = await getGoalsAction();
-            setGoals(data);
+            try {
+                const data = await GoalService.getGoals();
+                setGoals(data);
+            } catch (e) { console.error(e); }
         }
         loadCats();
         fetchGoals();

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getPendingTransactionsAction, confirmTransactionAction, deleteTransactionAction } from "@/actions/routine";
+import * as RoutineService from "@/services/routine.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, X, Clock, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { checkAndGenerateRoutinesAction } from "@/actions/routine";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +30,8 @@ export function PendingTransactions() {
     const fetchPending = async () => {
         setLoading(true);
         try {
-            await checkAndGenerateRoutinesAction(); // Lazy check on load
-            const data = await getPendingTransactionsAction(); 
+            await RoutineService.checkAndGenerateRoutines(); // Lazy check on load
+            const data = await RoutineService.getPendingTransactions(); 
             setTransactions(data);
         } catch (error) {
             console.error("Failed to fetch pending transactions", error);
@@ -46,21 +46,23 @@ export function PendingTransactions() {
 
     const handleConfirm = async (id: string) => {
         setProcessingId(id);
-        const res = await confirmTransactionAction(id);
-        if (res.success) {
+        try {
+            await RoutineService.confirmTransaction(id);
             setTransactions(prev => prev.filter(t => t._id !== id));
             toast.success("Transaction confirmed");
-        } else {
-            toast.error(res.message);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to confirm transaction");
         }
         setProcessingId(null);
     };
 
     const handleDelete = async (id: string) => {
         setProcessingId(id);
-        const res = await deleteTransactionAction(id);
-        if (res.success) {
+        try {
+            await RoutineService.deleteTransaction(id);
             setTransactions(prev => prev.filter(t => t._id !== id));
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete transaction");
         }
         setProcessingId(null);
     };

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createCategoryAction, updateCategoryAction } from "@/actions/category-actions";
+import { CategoryService } from "@/services/category.service";
+import { useRouter } from "next/navigation";
 import { CategoryType, ICategory } from "@/types/category";
 import { Loader2, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -128,6 +129,7 @@ interface CategoryDialogProps {
 export function CategoryDialog({ category, trigger, open, onOpenChange }: CategoryDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
     
     // Form State
     const [name, setName] = useState("");
@@ -182,12 +184,13 @@ export function CategoryDialog({ category, trigger, open, onOpenChange }: Catego
             const payload = { name, type, flexibility, icon, color, group, bucket };
             
             if (category && category._id) {
-                await updateCategoryAction(category._id, payload);
+                await CategoryService.updateCategory(category._id.toString(), payload);
             } else {
-                await createCategoryAction(payload);
+                await CategoryService.createCategory(payload);
             }
             
             handleOpenChange(false);
+            router.refresh();
         } catch (error) {
             console.error(error);
             toast.error("Failed to save category. Name might be duplicate.");

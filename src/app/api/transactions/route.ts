@@ -20,12 +20,10 @@ export async function GET(request: Request) {
     }
 
     const data = await getTransactions(params);
-    return NextResponse.json(data);
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching transactions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch transactions" },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, status: "Error", message: "Failed to fetch transactions" }, { status: 500 });
   }
 }
+export { POST, PUT, DELETE, PATCH } from "../[...path]/route";

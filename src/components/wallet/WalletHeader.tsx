@@ -8,20 +8,21 @@ import { WalletViewToggle } from "@/components/WalletViewToggle";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { EditWalletDialog } from "@/components/EditWalletDialog";
 import { CopyButton } from "@/components/ui/copy-button";
-import dbConnect from "@/lib/db";
+import { WalletType } from "@/types/wallet";
 
 export async function WalletHeader({ id }: { id: string }) {
-    await dbConnect();
     const wallet = await getWalletById(id);
     if (!wallet) notFound();
 
     const allWallets = await getWallets();
-    const Icon = getWalletIconComponent(wallet.type);
 
     return (
         <Card className={cn("text-white border-none shadow-lg overflow-hidden relative bg-gradient-to-br", getWalletGradient(wallet.color))}>
              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <Icon className="w-32 h-32" />
+                {(() => {
+                    const Icon = getWalletIconComponent(wallet.type as WalletType);
+                    return <Icon className="w-32 h-32" />;
+                })()}
              </div>
              <CardContent className="p-6 md:p-8 relative z-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">

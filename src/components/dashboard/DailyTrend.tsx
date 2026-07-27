@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface DailyTrendProps {
@@ -16,7 +16,8 @@ export function DailyTrend({ data, average }: DailyTrendProps) {
     return (
         <Card className="col-span-1">
             <CardHeader>
-                <CardTitle>Daily Expense (This Month)</CardTitle>
+                <CardTitle>Pengeluaran Harian</CardTitle>
+                <CardDescription>Tren pengeluaran harian Anda beserta garis rata-rata.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px]">

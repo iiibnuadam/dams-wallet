@@ -14,9 +14,11 @@ export async function GET(request: Request) {
 
     const data = await getDashboardData(view || "ALL", params);
 
-    return NextResponse.json(data);
-  } catch (error) {
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: data });
+  } catch (error: any) {
     console.error("Dashboard API Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const status = error.message?.includes("unauthorized") ? 401 : 500;
+    return NextResponse.json({ code: status, status: "Error", message: error.message || "Internal Server Error" }, { status });
   }
 }
+export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

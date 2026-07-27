@@ -16,5 +16,5 @@ export const NAV_LINKS: NavLink[] = [
     { href: "/goals", label: "Goals", icon: Target },
     { href: "/routines", label: "Routines", icon: Repeat },
     { href: "/debts", label: "Debt & Receivables", icon: History },
-    { href: "/categories", label: "Categories", icon: Settings, roles: ["ADMIN"] },
+    { href: "/categories", label: "Categories", icon: Settings },
 ];

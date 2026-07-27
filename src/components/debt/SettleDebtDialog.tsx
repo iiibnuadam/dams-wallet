@@ -38,7 +38,7 @@ export function SettleDebtDialog({ debt, trigger, onSettled, wallets }: SettleDe
     try {
         const res = await settleDebt({ id: debt._id, walletId: selectedWallet });
         setLoading(false);
-        if (res.success) {
+        if (res.code === 200) {
           setOpen(false);
           if (onSettled) onSettled();
           toast.success("Debt settled successfully");

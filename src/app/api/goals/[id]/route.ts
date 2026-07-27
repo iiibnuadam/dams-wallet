@@ -9,20 +9,18 @@ export async function GET(request: Request, context: any) {
   const { id } = await context.params;
   
   if (!id) {
-    return NextResponse.json({ error: "Goal ID required" }, { status: 400 });
+    return NextResponse.json({ code: 400 , status: "Error", message: "Goal ID required" }, { status: 400  });
   }
 
   try {
     const data = await getGoalDetails(id);
     if (!data) {
-      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+      return NextResponse.json({ code: 404 , status: "Error", message: "Goal not found" }, { status: 404  });
     }
-    return NextResponse.json(data);
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching goal:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch goal" },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, status: "Error", message: "Failed to fetch goal" }, { status: 500 });
   }
 }
+export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

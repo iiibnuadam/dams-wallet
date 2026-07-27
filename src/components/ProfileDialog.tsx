@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { DialogFooter } from "@/components/ui/dialog";
-import { getUserProfile, updateProfile } from "@/actions/user";
+import * as UserService from "@/services/user.service";
 import { Loader2 } from "lucide-react";
 // import { toast } from "sonner"; // Removed as it is not installed
 
@@ -63,18 +63,18 @@ export function ProfileDialog({ open, onOpenChange, trigger }: ProfileDialogProp
   useEffect(() => {
     if (open) {
         setFetching(true);
-        getUserProfile().then((result) => {
-            if (result.success && result.data) {
+        UserService.getUserProfile().then((data) => {
+            if (data) {
                 form.reset({
-                    name: result.data.name,
-                    username: result.data.username,
+                    name: data.name,
+                    username: data.username,
                     password: "",
                     confirmPassword: "",
                 });
-            } else {
-                // handle error
-                console.error("Failed to fetch profile");
             }
+        }).catch((err) => {
+            console.error("Failed to fetch profile", err);
+        }).finally(() => {
             setFetching(false);
         });
     }
@@ -82,27 +82,23 @@ export function ProfileDialog({ open, onOpenChange, trigger }: ProfileDialogProp
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    const formData = new FormData();
-    formData.append("name", values.name);
+    const payload: any = {
+      name: values.name,
+    };
     if (values.password) {
-        formData.append("password", values.password);
-        formData.append("confirmPassword", values.confirmPassword || "");
+        payload.password = values.password;
     }
 
-    const result = await updateProfile(formData);
-
-    setLoading(false);
-
-    if (result.success) {
-      onOpenChange(false);
-      // Optional: Refresh session/page if name changed extensively? 
-      // NextAuth session update requires client side reload or update() call.
-      // For now, revalidatePath in action handles data, but session might confuse "name" vs "username".
-      // We only store "username" in session.user.name. The real name is not in session.
-      // So no session update needed unless we start storing real name in session.
-      toast.success("Profile updated successfully");
-    } else {
-      toast.error(result.message);
+    try {
+        await UserService.updateProfile(payload);
+        onOpenChange(false);
+        toast.success("Profile updated successfully");
+        // Also refresh router so data re-fetches
+        window.location.reload(); 
+    } catch (error: any) {
+        toast.error(error.message || "Failed to update profile");
+    } finally {
+        setLoading(false);
     }
   }
 

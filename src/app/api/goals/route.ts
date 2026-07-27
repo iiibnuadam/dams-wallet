@@ -15,12 +15,10 @@ export async function GET(request: Request) {
     // Pass view or fallback to userId (service handles "ALL" logic if passed, or specific ID)
     const data = await getGoals(view || userId);
     
-    return NextResponse.json(data);
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching goals:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch goals" },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, status: "Error", message: "Failed to fetch goals" }, { status: 500 });
   }
 }
+export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

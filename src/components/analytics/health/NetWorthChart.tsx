@@ -19,7 +19,7 @@ export function NetWorthChart({ data }: { data: any[] }) {
       <CardHeader>
         <CardTitle>Net Worth Evolution</CardTitle>
         <CardDescription>
-          Tracking your wealth growth over the last 6 months.
+          Melacak pertumbuhan total kekayaan bersih Anda (aset dikurangi hutang) dari waktu ke waktu.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">

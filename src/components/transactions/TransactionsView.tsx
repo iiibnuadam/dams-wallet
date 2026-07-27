@@ -20,11 +20,16 @@ export function TransactionsView() {
     const currentView = searchParams.get("view") || currentUser;
     
     // Fetch wallets for filtering
-    const { data: wallets } = useWallets("ALL");
+    const { data: wallets } = useWallets(currentView);
 
     // Reconstruct params for UI logic
     const params: Record<string, string> = {};
     searchParams.forEach((value, key) => { params[key] = value; });
+    
+    // Inject the default view so it defaults to "My Activity"
+    if (!params.view) {
+        params.view = currentView;
+    }
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-10">
@@ -89,7 +94,7 @@ export function TransactionsView() {
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-1 border dark:border-zinc-800">
-                    <TransactionList />
+                    <TransactionList contextParams={params} />
                 </div>
             </main>
 

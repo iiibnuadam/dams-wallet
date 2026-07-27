@@ -38,7 +38,6 @@ export function GoalHistoryList({ history, itemColorMap = {}, onRefresh }: GoalH
                 open={!!selectedTx} 
                 onOpenChange={(open) => !open && setSelectedTx(null)} 
                 transaction={selectedTx}
-                customDeleteAction={deleteGoalPaymentAction}
                 onDeleteSuccess={() => {
                     if (onRefresh) {
                         onRefresh();
@@ -106,7 +105,6 @@ export function GoalHistoryList({ history, itemColorMap = {}, onRefresh }: GoalH
     );
 }
 
-import { deleteGoalPaymentAction } from "@/actions/goal";
 import { TransactionDetailDialog } from "@/components/TransactionDetailDialog";
 import { useState } from "react";
 import { useRouter } from "next/navigation";

@@ -4,7 +4,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, AlertCircle, Target, TrendingDown, Calendar, Pencil, Share2, Wallet, Plus, Trash2, Copy } from "lucide-react";
 import Link from "next/link";
 import {
   Accordion,
@@ -23,8 +23,10 @@ import { cn } from "@/lib/utils";
 import { EditGroupDialog, AddGroupDialog } from "@/components/GroupDialogs";
 import { useGoal } from "@/hooks/useGoals";
 import { useWallets } from "@/hooks/useWallets";
+import { setGoalItemCompletion, setGoalCompletion } from "@/services/goal.service";
 import { useRouter } from "next/navigation";
 import { GoalDetailSkeleton } from "@/components/skeletons";
+import { toast } from "sonner";
 
 interface GoalDetailViewProps {
     goalId: string;
@@ -56,6 +58,28 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         console.log("handleRefresh called");
         refetch();
     }, []);
+
+    const handleToggleComplete = async (e: React.MouseEvent, item: any) => {
+        e.stopPropagation();
+        try {
+            await setGoalItemCompletion(item._id, !item.isCompleted);
+            toast.success(item.isCompleted ? "Goal item reactivated" : "Goal item completed!");
+            handleRefresh();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to update item");
+        }
+    };
+
+    const handleToggleGoalComplete = async () => {
+        if (!goal) return;
+        try {
+            await setGoalCompletion(goal._id, !goal.isCompleted);
+            toast.success(goal.isCompleted ? "Goal marked as active" : "Goal marked as completed!");
+            handleRefresh();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to update goal status");
+        }
+    };
 
     const [activeTab, setActiveTab] = useState("overview");
     const [historyFilter, setHistoryFilter] = useState<{ type: 'ALL' | 'GROUP' | 'ITEM', id?: string, name?: string }>({ type: 'ALL' });
@@ -106,8 +130,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         // 4. Calculate Totals (Recursive Rollup)
         const calculateTotals = (node: GroupNode) => {
              // Sum direct items
-             let estimated = node.items.reduce((acc, i) => acc + i.estimatedAmount, 0);
-             let actual = node.items.reduce((acc, i) => acc + i.actualAmount, 0);
+             let estimated = node.items.reduce((acc, i) => acc + (i.estimatedAmount || 0), 0);
+             let actual = node.items.reduce((acc, i) => acc + (i.actualAmount || 0), 0);
              let itemCount = node.items.length;
 
              // Sum children
@@ -134,8 +158,8 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                  icon: "❓",
                  children: [],
                  items: orphanItems,
-                 totalEstimated: orphanItems.reduce((acc, i) => acc + i.estimatedAmount, 0),
-                 totalActual: orphanItems.reduce((acc, i) => acc + i.actualAmount, 0),
+                 totalEstimated: orphanItems.reduce((acc, i) => acc + (i.estimatedAmount || 0), 0),
+                 totalActual: orphanItems.reduce((acc, i) => acc + (i.actualAmount || 0), 0),
                  totalItemCount: orphanItems.length
              };
              roots.push(unassignedNode);
@@ -187,9 +211,9 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
 
     // Calculations
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const totalEstimated = goal.items.reduce((sum: number, item: any) => sum + item.estimatedAmount, 0);
+    const totalEstimated = goal.items.reduce((sum: number, item: any) => sum + (item.estimatedAmount || 0), 0);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const totalActual = goal.items.reduce((sum: number, item: any) => sum + item.actualAmount, 0);
+    const totalActual = goal.items.reduce((sum: number, item: any) => sum + (item.actualAmount || 0), 0);
     
     // Remaining is: sum of (item.estimated - item.actual) for incomplete items only?
     // OR: Total Est - Total Act?
@@ -199,7 +223,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const totalRemaining = goal.items.reduce((sum: number, item: any) => {
         if (item.isCompleted) return sum; // 0 remaining for this item
-        return sum + Math.max(0, item.estimatedAmount - item.actualAmount);
+        return sum + Math.max(0, (item.estimatedAmount || 0) - (item.actualAmount || 0));
     }, 0);
 
     // Progress = (Total Est - Total Remaining) / Total Est ?
@@ -236,7 +260,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         const calculateNodeRemaining = (n: GroupNode): number => {
             let rem = n.items.reduce((acc, i) => {
                 if (i.isCompleted) return acc;
-                return acc + Math.max(0, i.estimatedAmount - i.actualAmount);
+                return acc + Math.max(0, (i.estimatedAmount || 0) - (i.actualAmount || 0));
             }, 0);
             n.children.forEach(c => rem += calculateNodeRemaining(c));
             return rem;
@@ -371,7 +395,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                             <div className={cn(COL_PROGRESS, "flex flex-col justify-center h-full")}>
                                                 <div className="flex justify-between w-full text-[10px] font-medium text-muted-foreground mb-1.5 opacity-80">
                                                     <span>Progress</span>
-                                                    <span>{((node.totalEstimated - groupRemaining)/ node.totalEstimated * 100).toFixed(0)}%</span>
+                                                    <span>{node.totalEstimated > 0 ? ((node.totalEstimated - groupRemaining)/ node.totalEstimated * 100).toFixed(0) : 0}%</span>
                                                 </div>
                                                 <div className="h-2 w-full bg-black/5 dark:bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
                                                     <div 
@@ -423,18 +447,47 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                         : "hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/accordion-trigger:opacity-100 scale-90 group-hover/accordion-trigger:scale-100 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-1 shadow-lg"
                                 )}>
                                 {!isEditMode ? (
-                                    <Button 
-                                        size="icon" 
-                                        variant="ghost" 
-                                        className="h-8 w-8 text-muted-foreground hover:text-orange-600 rounded-lg hover:bg-white/50 dark:hover:bg-white/10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleFilter('GROUP', node._id, node.name);
-                                        }}
-                                        title="View Group History"
-                                    >
-                                        <History className="w-4 h-4" />
-                                    </Button>
+                                    <>
+                                        <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 text-muted-foreground hover:text-orange-600 rounded-lg hover:bg-white/50 dark:hover:bg-white/10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleFilter('GROUP', node._id, node.name);
+                                            }}
+                                            title="View Group History"
+                                        >
+                                            <History className="w-4 h-4" />
+                                        </Button>
+                                        <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg hover:bg-white/50 dark:hover:bg-white/10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                let text = `${node.name}\nTarget: ${formatCurrency(node.totalEstimated)} | Aktual: ${formatCurrency(node.totalActual)}\n`;
+                                                
+                                                const collectItems = (n: any): any[] => {
+                                                    let res = [...n.items];
+                                                    n.children.forEach((c: any) => {
+                                                        res = res.concat(collectItems(c));
+                                                    });
+                                                    return res;
+                                                };
+                                                
+                                                const allItems = collectItems(node);
+                                                if (allItems.length > 0) {
+                                                    text += `Items:\n` + allItems.map((i: any) => `- ${i.name} (Target: ${formatCurrency(i.estimatedAmount || 0)}, Aktual: ${formatCurrency(i.actualAmount || 0)})`).join('\n');
+                                                }
+                                                navigator.clipboard.writeText(text);
+                                                toast.success("Budget dicopy ke clipboard");
+                                            }}
+                                            title="Copy Budget Breakdown"
+                                        >
+                                            <Copy className="w-4 h-4" />
+                                        </Button>
+                                    </>
                                 ) : (
                                     <EditGroupDialog 
                                         goalId={goal._id} 
@@ -468,30 +521,33 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                             // If marked as completed, force progress to 100% (or should we show actual?)
                             // User wants it to look "Lunas".
                             // Let's say: if completed, Remaining is 0.
+                            const estAmt = item.estimatedAmount || 0;
+                            const actAmt = item.actualAmount || 0;
+                            
                             const progress = item.isCompleted 
                                 ? 100 
-                                : item.estimatedAmount > 0 
-                                    ? (item.actualAmount / item.estimatedAmount) * 100 
+                                : estAmt > 0 
+                                    ? (actAmt / estAmt) * 100 
                                     : 0;
                             
-                            const isItemOver = item.actualAmount > item.estimatedAmount;
+                            const isItemOver = actAmt > estAmt;
                             const isPaid = item.isCompleted || progress >= 100;
                             
                             // If completed but under budget, maybe show green with a check?
-                            const isUnderBudget = item.isCompleted && item.actualAmount < item.estimatedAmount;
+                            const isUnderBudget = item.isCompleted && actAmt < estAmt;
 
                             // Status Logic
-                            const remaining = Math.max(0, item.estimatedAmount - item.actualAmount);
+                            const remaining = Math.max(0, estAmt - actAmt);
                             let statusLabel = "";
                             let statusClass = "";
 
                             if (item.isCompleted) {
                                 statusLabel = "Lunas";
                                 statusClass = "text-emerald-600 dark:text-emerald-400 font-bold";
-                            } else if (item.actualAmount > item.estimatedAmount) {
+                            } else if (actAmt > estAmt) {
                                 statusLabel = "Melebihi Target"; // Exceeded
                                 statusClass = "text-amber-600 dark:text-amber-400 font-medium";
-                            } else if (item.actualAmount === item.estimatedAmount && item.estimatedAmount > 0) {
+                            } else if (actAmt === estAmt && estAmt > 0) {
                                 statusLabel = "Tercapai"; // Reached
                                 statusClass = "text-blue-600 dark:text-blue-400 font-medium";
                             } else {
@@ -534,7 +590,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                         </span>
                                                         <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-2 text-[10px] mt-0.5 w-fit">
                                                             <span className="text-muted-foreground opacity-70">
-                                                                Target: <span className="font-medium">{formatCurrency(item.estimatedAmount)}</span>
+                                                                Target: <span className="font-medium">{formatCurrency(estAmt)}</span>
                                                             </span>
                                                             <span className={cn("px-1.5 py-0.5 rounded w-fit bg-black/5 dark:bg-white/5", statusClass)}>
                                                                 {statusLabel}
@@ -547,7 +603,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 {!isEditMode && (
                                                     <div className="md:hidden flex flex-col items-end shrink-0 pl-1">
                                                         <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                            {formatCurrency(item.actualAmount)}
+                                                            {formatCurrency(actAmt)}
                                                         </div>
                                                         {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                                     </div>
@@ -557,7 +613,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 {isEditMode && (
                                                     <div className="md:hidden flex flex-col items-end shrink-0">
                                                         <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                            {formatCurrency(item.actualAmount)}
+                                                            {formatCurrency(actAmt)}
                                                         </div>
                                                         {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                                     </div>
@@ -580,7 +636,7 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                 {/* Amount Column */}
                                                 <div className={cn(COL_AMOUNT, "text-right shrink-0")}>
                                                     <div className={cn("font-bold text-sm tabular-nums tracking-tight", isItemOver ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
-                                                        {formatCurrency(item.actualAmount)}
+                                                        {formatCurrency(actAmt)}
                                                     </div>
                                                     {isItemOver && <span className="text-[9px] text-red-500 font-medium bg-red-500/10 px-1 rounded">Over</span>}
                                                 </div>
@@ -612,6 +668,34 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                                                 title="View History"
                                                             >
                                                                 <History className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                            <Button 
+                                                                size="icon" 
+                                                                variant="ghost" 
+                                                                className={cn(
+                                                                    "h-7 w-7 rounded-lg mr-1 transition-colors",
+                                                                    item.isCompleted 
+                                                                        ? "text-emerald-500 hover:bg-red-500/10 hover:text-red-500" 
+                                                                        : "text-muted-foreground hover:bg-emerald-500/20 hover:text-emerald-600"
+                                                                )}
+                                                                onClick={(e) => handleToggleComplete(e, item)}
+                                                                title={item.isCompleted ? "Mark as Incomplete" : "Mark as Completed"}
+                                                            >
+                                                                {item.isCompleted ? <CheckCircle2 className="w-4 h-4 fill-emerald-500/20" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                            </Button>
+                                                            <Button 
+                                                                size="icon" 
+                                                                variant="ghost" 
+                                                                className="h-7 w-7 hover:bg-primary/20 hover:text-primary rounded-lg text-muted-foreground mr-1"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const text = `${item.name}\nTarget: ${formatCurrency(estAmt)}\nAktual: ${formatCurrency(actAmt)}`;
+                                                                    navigator.clipboard.writeText(text);
+                                                                    toast.success("Item dicopy ke clipboard");
+                                                                }}
+                                                                title="Copy Item Breakdown"
+                                                            >
+                                                                <Copy className="w-3.5 h-3.5" />
                                                             </Button>
                                                             <PayGoalItemDialog 
                                                                 goalName={goal.name}
@@ -741,11 +825,25 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                         </div>
                                     </div>
                                 </div>
-                                <EditGoalDialog goal={goal} trigger={
-                                     <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 backdrop-blur-md shadow-sm">
-                                        <Pencil className="w-4 h-4 mr-2" /> Edit Goal
-                                     </Button>
-                                 } />
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className={cn(
+                                            "backdrop-blur-md shadow-sm transition-colors",
+                                            goal.isCompleted ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20" : "bg-background/50 hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/20"
+                                        )}
+                                        onClick={handleToggleGoalComplete}
+                                    >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" /> 
+                                        {goal.isCompleted ? "Completed" : "Mark Complete"}
+                                    </Button>
+                                    <EditGoalDialog goal={goal} trigger={
+                                         <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 backdrop-blur-md shadow-sm">
+                                            <Pencil className="w-4 h-4 mr-2" /> Edit Goal
+                                         </Button>
+                                     } />
+                                </div>
                             </div>
 
                             {/* Stats */}

@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WalletType } from "@/types/wallet";
-import { createWallet } from "@/actions/wallet";
+import { createWallet } from "@/services/wallet.service";
 import { Plus, Check } from "lucide-react";
 import { WALLET_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -68,27 +68,30 @@ export function AddWalletDialog() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const formData = new FormData();
-    formData.append("name", values.name);
-    formData.append("type", values.type);
-    formData.append("initialBalance", values.initialBalance);
-    formData.append("color", values.color);
-    if(values.bankName) formData.append("bankName", values.bankName);
-    if(values.accountNumber) formData.append("accountNumber", values.accountNumber);
-    if(values.accountHolder) formData.append("accountHolder", values.accountHolder);
+    const payload: any = {
+      name: values.name,
+      type: values.type,
+      initialBalance: Number(values.initialBalance.replace(/\D/g, "") || "0"),
+      color: values.color,
+    };
 
-    const result = await createWallet(null, formData);
+    if (values.type === WalletType.BANK) {
+      payload.bankDetails = {
+        bankName: values.bankName,
+        accountNumber: values.accountNumber,
+        accountHolder: values.accountHolder,
+      };
+    }
 
-    if (result.success) {
-      setOpen(false);
-      form.reset();
-      // Invalidate queries to refresh the list
-      await queryClient.invalidateQueries({ queryKey: ["wallets"] });
-      // Also refresh router for Server Components if any
-      router.refresh();
-    } else {
-        // Handle error (toast usually)
-        toast.error(result.message);
+    try {
+        await createWallet(payload);
+        setOpen(false);
+        form.reset();
+        await queryClient.invalidateQueries({ queryKey: ["wallets"] });
+        router.refresh();
+        toast.success("Wallet created successfully");
+    } catch (error: any) {
+        toast.error(error.message || "Failed to create wallet");
     }
   }
 

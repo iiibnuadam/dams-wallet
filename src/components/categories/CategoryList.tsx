@@ -2,7 +2,8 @@
 
 import { useTransition, useState } from "react";
 import { ICategory, CategoryType } from "@/types/category";
-import { deleteCategoryAction } from "@/actions/category-actions";
+import { CategoryService } from "@/services/category.service";
+import { useRouter } from "next/navigation";
 import { CategoryDialog } from "./CategoryDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,10 +22,15 @@ export function CategoryList({ categories, type }: CategoryListProps) {
 
     const filtered = categories.filter(c => c.type === type);
 
-    const handleDelete = (id: string) => {
-        startTransition(async () => {
-            await deleteCategoryAction(id);
-        });
+    const router = useRouter();
+
+    const handleDelete = async (id: string) => {
+        try {
+            await CategoryService.deleteCategory(id);
+            router.refresh();
+        } catch (error) {
+            console.error("Failed to delete category", error);
+        }
     };
 
     if (filtered.length === 0) {

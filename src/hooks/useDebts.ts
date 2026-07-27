@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { createDebtAction, updateDebtAction, deleteDebtAction, settleDebtAction } from '@/actions/debt';
+import * as DebtService from '@/services/debt.service';
 
 export function useDebts(view: string = "ALL") {
   return useQuery({
     queryKey: ['debts', view],
     queryFn: async () => {
-      const response = await apiClient.get(`/debts?view=${view}`);
+      const response = await apiClient.get(`/debts?owner=${view}`);
       return response.data;
     },
   });
@@ -16,9 +16,8 @@ export function useCreateDebt() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (data: any) => {
-            const res = await createDebtAction(data);
-            if (!res.success) throw new Error(res.message);
-            return res;
+            await DebtService.createDebt(data);
+            return { code: 200, message: "Success" };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -31,9 +30,8 @@ export function useUpdateDebt() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: any }) => {
-            const res = await updateDebtAction(id, data);
-            if (!res.success) throw new Error(res.message);
-            return res;
+            await DebtService.updateDebt(id, data);
+            return { code: 200, message: "Success" };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -45,9 +43,8 @@ export function useDeleteDebt() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const res = await deleteDebtAction(id);
-            if (!res.success) throw new Error(res.message);
-            return res;
+            await DebtService.deleteDebt(id);
+            return { code: 200, message: "Success" };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -60,9 +57,8 @@ export function useSettleDebt() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, walletId }: { id: string; walletId: string }) => {
-            const res = await settleDebtAction(id, walletId);
-            if (!res.success) throw new Error(res.message);
-            return res;
+            await DebtService.settleDebt(id, walletId);
+            return { code: 200, message: "Success" };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['debts'] });

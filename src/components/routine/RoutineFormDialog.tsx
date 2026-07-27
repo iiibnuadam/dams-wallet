@@ -18,11 +18,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { DialogFooter } from "@/components/ui/dialog";
-import { createRoutineAction, updateRoutineAction } from "@/actions/routine"; 
+import * as RoutineService from "@/services/routine.service";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Plus, Loader2, Pencil } from "lucide-react";
-import { getCategoriesAction } from "@/actions/category-actions";
+import { CategoryService } from "@/services/category.service";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
 
 const formSchema = z.object({
@@ -58,7 +58,7 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
   
   useEffect(() => {
     if (open) {
-        getCategoriesAction().then(setCategories);
+        CategoryService.getCategories().then(setCategories).catch(console.error);
     }
   }, [open]);
 
@@ -113,22 +113,23 @@ export function RoutineFormDialog({ wallets, routine, trigger, open: controlledO
         status: values.status || "ACTIVE",
     };
 
-    let res;
-    if (routine) {
-        res = await updateRoutineAction(routine._id, payload);
-    } else {
-        res = await createRoutineAction(payload);
-    }
-
-    setLoading(false);
-
-    if (res.success) {
-      setOpen(false);
-      form.reset();
-      router.refresh(); // Refresh server data
-      if (onSaved) onSaved();
-    } else {
-      toast.error(res.message || "Failed to save routine");
+    try {
+        if (routine) {
+            await RoutineService.updateRoutine(routine._id, payload);
+            toast.success("Routine updated successfully");
+        } else {
+            await RoutineService.createRoutine(payload);
+            toast.success("Routine created successfully");
+        }
+        
+        if (onSaved) onSaved();
+        setOpen(false);
+        router.refresh();
+        form.reset();
+    } catch (error: any) {
+        toast.error(error.message || "Something went wrong");
+    } finally {
+        setLoading(false);
     }
   }
 

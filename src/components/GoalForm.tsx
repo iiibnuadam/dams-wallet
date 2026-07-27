@@ -54,21 +54,22 @@ export function GoalForm({ defaultValues, goalId, onSuccess }: GoalFormProps) {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setLoading(true);
-        const formData = new FormData();
-        formData.append("name", values.name);
-        formData.append("targetDate", values.targetDate);
-        formData.append("visibility", values.visibility);
-        formData.append("color", values.color || "");
-        formData.append("icon", values.icon || "");
+        const payload = {
+            name: values.name,
+            targetDate: values.targetDate,
+            visibility: values.visibility,
+            color: values.color || "",
+            icon: values.icon || ""
+        };
 
         try {
             const result = goalId 
-                ? await updateGoal({ id: goalId, formData })
-                : await createGoal(formData);
+                ? await updateGoal({ id: goalId, data: payload })
+                : await createGoal(payload);
             
             setLoading(false);
             
-            if (result.success) {
+            if (result.code === 200) {
                 toast.success(result.message);
                 if (onSuccess) onSuccess();
                 // We use router push as goals page might need full refresh or just navigation

@@ -1,4 +1,4 @@
-import { getCategoriesAction } from "@/actions/category-actions";
+import { CategoryService } from "@/services/category.service";
 import { CategoryList } from "@/components/categories/CategoryList";
 import { CategoryDialog } from "@/components/categories/CategoryDialog";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,7 @@ export const metadata = {
 };
 
 export default async function CategoriesPage() {
-    // Fetch all categories
-    const categories = await getCategoriesAction();
+    const categories = await CategoryService.getCategories();
 
     return (
         <div className="container max-w-7xl mx-auto py-8 space-y-6">

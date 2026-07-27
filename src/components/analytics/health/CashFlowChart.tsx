@@ -8,9 +8,9 @@ export function CashFlowChart({ data }: { data: any[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Monthly Cash Flow</CardTitle>
+        <CardTitle>Cash Flow</CardTitle>
         <CardDescription>
-          Surplus (Green) vs Deficit (Red) per month.
+          Perbandingan antara total Pendapatan (Hijau) dan Pengeluaran (Merah) di setiap periode.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">

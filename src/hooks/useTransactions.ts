@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { createTransaction, deleteTransaction } from '@/actions/transaction';
+import * as TransactionService from '@/services/transaction.service';
 
 // Interface matching the API response
 interface TransactionResponse {
@@ -26,7 +26,14 @@ export function useTransactions(params: Record<string, any>, options?: { enabled
       // Merge filterParams with pageParam
       Object.entries({ ...filterParams, page: pageParam }).forEach(([key, value]) => {
           if (value !== undefined && value !== null && String(value) !== "") {
-              queryParams.append(key, String(value));
+              // Map view to owner, but ignore if it's just a UI tab state like analytics or transactions
+              if (key === 'view') {
+                  if (value !== 'analytics' && value !== 'transactions') {
+                      queryParams.append('owner', String(value));
+                  }
+              } else {
+                  queryParams.append(key, String(value));
+              }
           }
       });
       
@@ -48,9 +55,9 @@ export function useCreateTransaction() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (formData: FormData) => {
-             const result = await createTransaction(null, formData);
-             return result;
+        mutationFn: async (payload: any) => {
+             const result = await TransactionService.createTransaction(payload);
+             return { code: 200, status: "Success", message: "Transaction created successfully", data: result };
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -58,7 +65,7 @@ export function useCreateTransaction() {
             queryClient.invalidateQueries({ queryKey: ['wallets'] });
             // Invalidate goals if meaningful (e.g. paying goal item)
             // Ideally we check if variables.get('goalItem') exists but FormData inspection is fine
-            if (variables.get('goalItem')) {
+            if (variables.goalItem) {
                  queryClient.invalidateQueries({ queryKey: ['goals'] });
                  // If we could extract goalId, we would invalidate specific goal, but invalidating all goals list/details is safer
                  // But wait, useGoal(id) uses ['goal', id]. useGoals uses ['goals'].
@@ -76,8 +83,8 @@ export function useDeleteTransaction() {
     
     return useMutation({
         mutationFn: async (id: string) => {
-             const result = await deleteTransaction(id);
-             return result;
+             await TransactionService.deleteTransaction(id);
+             return { code: 200, status: "Success", message: "Transaction deleted successfully" };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });

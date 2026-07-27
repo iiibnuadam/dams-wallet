@@ -16,12 +16,14 @@ export async function GET(request: Request) {
     }
 
     const wallets = await getWallets(view || "ALL");
-    return NextResponse.json(wallets);
-  } catch (error) {
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: wallets });
+  } catch (error: any) {
     console.error("Error fetching wallets:", error);
+    const status = error.message?.includes("unauthorized") ? 401 : 500;
     return NextResponse.json(
-      { error: "Failed to fetch wallets" },
-      { status: 500 }
+      { error: error.message || "Failed to fetch wallets" },
+      { status }
     );
   }
 }
+export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

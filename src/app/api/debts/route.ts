@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ code: 401 , status: "Error", message: "Unauthorized" }, { status: 401  });
     }
 
     const { searchParams } = new URL(request.url);
@@ -16,12 +16,10 @@ export async function GET(request: Request) {
     // If view is provided, use it. Otherwise default to current user (handled by getDebts('ALL') ? No, getDebts(ownerId))
     const debts = await getDebts(view || (session.user as any).id);
     
-    return NextResponse.json(debts);
+    return NextResponse.json({ code: 200, status: "OK", message: "Success", data: debts });
   } catch (error) {
     console.error("Error fetching debts:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch debts" },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, status: "Error", message: "Failed to fetch debts" }, { status: 500 });
   }
 }
+export { POST, PUT, DELETE, PATCH } from "@/app/api/[...path]/route";

@@ -6,7 +6,7 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Trash2, ArrowRight } from "lucide-react";
-import { deleteTransaction } from "@/actions/transaction";
+import * as TransactionService from "@/services/transaction.service";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -26,7 +26,7 @@ interface TransactionDetailDialogProps {
     transaction: any; // Using any for simplicity as DTO varies, but ideally ITransaction
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    customDeleteAction?: (id: string) => Promise<{ success: boolean; message: string }>;
+    customDeleteAction?: (id: string) => Promise<{ code: number; status: string; message: string }>;
     onDeleteSuccess?: () => void;
 }
 
@@ -38,15 +38,23 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
 
     const handleDelete = async () => {
         setIsDeleting(true);
-        const result = await (customDeleteAction ? customDeleteAction(transaction._id) : deleteTransaction(transaction._id));
-        setIsDeleting(false);
-        setShowDeleteAlert(false);
-
-        if (result.success) {
+        try {
+            if (customDeleteAction) {
+                 const result = await customDeleteAction(transaction._id);
+                 if (result.code !== 200) {
+                     throw new Error(result.message);
+                 }
+            } else {
+                 await TransactionService.deleteTransaction(transaction._id);
+            }
+            setIsDeleting(false);
+            setShowDeleteAlert(false);
             onOpenChange(false);
             if (onDeleteSuccess) onDeleteSuccess();
-        } else {
-            toast.error(result.message);
+        } catch (error: any) {
+            setIsDeleting(false);
+            setShowDeleteAlert(false);
+            toast.error(error.message || "Failed to delete transaction");
         }
     };
 

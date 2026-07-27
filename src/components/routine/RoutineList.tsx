@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RoutineListSkeleton } from "@/components/skeletons";
-import { getRoutinesAction } from "@/actions/routine"; 
+import * as RoutineService from "@/services/routine.service";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit, Loader2, Calendar, Repeat, ArrowRight, Wallet, ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
-import { deleteRoutineAction } from "@/actions/routine";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +23,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { updateRoutineAction } from "@/actions/routine";
+
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -49,7 +48,7 @@ export function RoutineList({ wallets }: RoutineListProps) {
 
     const fetchRoutines = () => {
         setLoading(true);
-        getRoutinesAction(currentView).then(data => {
+        RoutineService.getRoutines(currentView).then(data => {
             setRoutines(data);
             setLoading(false);
         });
@@ -69,9 +68,11 @@ export function RoutineList({ wallets }: RoutineListProps) {
             r._id === id ? { ...r, status: newStatus } : r
         ));
 
-        const res = await updateRoutineAction(id, { status: newStatus });
-        if (!res.success) {
-            // Revert if failed
+        try {
+            await RoutineService.updateRoutine(id, { status: newStatus });
+            // Re-fetch to get recalculated nextRun from backend
+            fetchRoutines();
+        } catch (e) {
             toast.error("Failed to update status");
             fetchRoutines();
         }
@@ -80,11 +81,11 @@ export function RoutineList({ wallets }: RoutineListProps) {
     // Calculate Monthly Stats
     // Naive calculation assuming everything is Monthly for now, or just summing up the amounts as "Active Commitments"
     const totalExpense = routines
-        .filter(r => r.type === "EXPENSE" || r.type === "TRANSFER") // Transfers are also money moving
+        .filter(r => (r.type === "EXPENSE" || r.type === "TRANSFER") && r.status === "ACTIVE") // Only active
         .reduce((sum, r) => sum + r.amount, 0);
 
     const totalIncome = routines
-        .filter(r => r.type === "INCOME")
+        .filter(r => r.type === "INCOME" && r.status === "ACTIVE")
         .reduce((sum, r) => sum + r.amount, 0);
 
     if (loading) return <RoutineListSkeleton />;
@@ -251,8 +252,12 @@ export function RoutineList({ wallets }: RoutineListProps) {
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                             <AlertDialogAction 
                                                 onClick={async () => {
-                                                    await deleteRoutineAction(routine._id);
-                                                    setRoutines(prev => prev.filter(r => r._id !== routine._id));
+                                                    try {
+                                                        await RoutineService.deleteRoutine(routine._id);
+                                                        setRoutines(prev => prev.filter(r => r._id !== routine._id));
+                                                    } catch (e) {
+                                                        toast.error("Failed to delete routine");
+                                                    }
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700"
                                             >

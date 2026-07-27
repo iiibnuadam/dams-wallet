@@ -40,7 +40,7 @@ export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBr
   const [activeTab, setActiveTab] = useState("EXPENSE");
 
   const data = activeTab === "EXPENSE" ? expenses : incomes;
-  const title = activeTab === "EXPENSE" ? "Expense Breakdown" : "Income Breakdown";
+  const title = activeTab === "EXPENSE" ? "Rincian Pengeluaran" : "Rincian Pendapatan";
 
   // Sort data by value desc for better visualization
   const sortedData = [...data].sort((a, b) => b.value - a.value);
@@ -65,8 +65,8 @@ export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBr
             </div>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-[180px]">
                 <TabsList className="grid w-full grid-cols-2 h-8">
-                    <TabsTrigger value="INCOME" className="text-xs">Income</TabsTrigger>
-                    <TabsTrigger value="EXPENSE" className="text-xs">Expense</TabsTrigger>
+                    <TabsTrigger value="INCOME" className="text-xs">Pendapatan</TabsTrigger>
+                    <TabsTrigger value="EXPENSE" className="text-xs">Pengeluaran</TabsTrigger>
                 </TabsList>
             </Tabs>
           </div>
@@ -77,7 +77,7 @@ export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBr
                  <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full">
                     <PieChartIcon className="w-6 h-6 opacity-50" />
                  </div>
-                 <p>No data available for this period.</p>
+                 <p>Tidak ada data untuk periode ini.</p>
              </div>
         ) : (
             <ScrollArea className="h-[350px] pr-4">
@@ -94,7 +94,7 @@ export function CategoryBreakdown({ expenses, incomes, periodLabel }: CategoryBr
                         const fallbackColor = COLORS[index % COLORS.length];
 
                         return (
-                            <div key={item.name} className="space-y-2">
+                            <div key={`${item.name}-${index}`} className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-2 max-w-[70%]">
                                         {/* Icon Box */}

@@ -114,7 +114,7 @@ export function DebtFormDialog({ debt, trigger, open: controlledOpen, onOpenChan
 
         setLoading(false);
 
-        if (res.success) {
+        if (res.code === 200) {
             setOpen(false);
             form.reset();
             if (onSaved) onSaved();

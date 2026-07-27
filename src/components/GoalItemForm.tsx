@@ -88,26 +88,26 @@ export function GoalItemForm({ goalId, itemId, existingGroups = [], defaultValue
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setLoading(true);
-        const formData = new FormData();
-        formData.append("goalId", goalId);
+        const payload: any = {
+            goalId: goalId,
+            name: values.name,
+            estimatedAmount: values.estimatedAmount
+        };
         
         if (values.groupId) {
-             formData.append("groupId", values.groupId);
+             payload.groupId = values.groupId;
         } else if (values.groupName) {
-             formData.append("groupName", values.groupName);
+             payload.groupName = values.groupName;
         }
-
-        formData.append("name", values.name);
-        formData.append("estimatedAmount", values.estimatedAmount.toString());
 
         try {
             const result = itemId
-                ? await updateItem({ id: itemId, goalId, formData })
-                : await createItem(formData);
+                ? await updateItem({ id: itemId, goalId, data: payload })
+                : await createItem(payload);
             
             setLoading(false);
 
-            if (result.success) {
+            if (result.code === 200) {
                 toast.success(result.message);
                 if (onSuccess) onSuccess();
                 form.reset();

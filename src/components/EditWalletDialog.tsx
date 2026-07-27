@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
@@ -27,15 +27,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Pencil, Check } from "lucide-react";
-import { updateWallet, deleteWallet } from "@/actions/wallet";
-import { WalletType, WalletOwner } from "@/types/wallet";
-import { useForm } from "react-hook-form"; 
+import { updateWallet, deleteWallet } from "@/services/wallet.service";
+import { WalletType } from "@/types/wallet";
 import { WALLET_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-// Actually AddDialog used useActionState directly. Let's do the same.
-
-// We need to pass the ID to the action. simple bind? or hidden input.
-// Recommended: bind.
 
 interface EditWalletDialogProps {
     wallet: {
@@ -57,27 +52,52 @@ interface EditWalletDialogProps {
     };
 }
 
-const initialState = {
-  message: "",
-  success: false,
-};
-
 export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
   const [open, setOpen] = useState(false);
-  
-  // We need to wrap the action to pass ID
-  const updateWalletWithId = updateWallet.bind(null, wallet._id);
-  const [state, formAction, isPending] = useActionState(updateWalletWithId, initialState);
+  const [isPending, setIsPending] = useState(false);
 
   // Local state for conditional rendering logic
   const [selectedType, setSelectedType] = useState(wallet.type);
   const [selectedColor, setSelectedColor] = useState(wallet.color || "BLUE");
 
-  useEffect(() => {
-     if (state.success) {
-         setOpen(false);
-     }
-  }, [state.success]);
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+      e.preventDefault();
+      setIsPending(true);
+
+      const formData = new FormData(e.currentTarget);
+      const payload: any = {
+        name: formData.get("name"),
+        type: formData.get("type"),
+        initialBalance: Number(formData.get("initialBalance")?.toString().replace(/\D/g, "") || "0"),
+        color: formData.get("color"),
+      };
+
+      if (payload.type === WalletType.BANK) {
+        payload.bankDetails = {
+          bankName: formData.get("bankName"),
+          accountNumber: formData.get("accountNumber"),
+          accountHolder: formData.get("accountHolder"),
+        };
+      }
+
+      if (payload.type === WalletType.LIABILITY) {
+        payload.liabilityDetails = {
+          startDate: formData.get("liabilityStartDate"),
+          tenorMonths: Number(formData.get("liabilityTenor")),
+        };
+      }
+
+      try {
+          await updateWallet(wallet._id, payload);
+          toast.success("Wallet updated successfully");
+          setOpen(false);
+          window.location.reload(); // Refresh the page to reflect changes
+      } catch (error: any) {
+          toast.error(error.message || "Failed to update wallet");
+      } finally {
+          setIsPending(false);
+      }
+  }
 
   return (
     <ResponsiveDialog
@@ -91,7 +111,7 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
             </Button>
         }
     >
-        <form action={formAction} className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" defaultValue={wallet.name} required />
@@ -190,12 +210,6 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
                </div>
           )}
 
-          {state.message && (
-             <p className={`text-sm ${state.success ? "text-green-500" : "text-red-500"}`}>
-               {state.message}
-             </p>
-          )}
-
           <DialogFooter className="sm:justify-between gap-2">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -212,13 +226,14 @@ export function EditWalletDialog({ wallet }: EditWalletDialogProps) {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={async () => {
-                       const result = await deleteWallet(wallet._id);
-                       if (result.success) {
+                       try {
+                           await deleteWallet(wallet._id);
+                           toast.success("Wallet deleted successfully");
                            setOpen(false);
                            // Force redirect to home if we are on the wallet page, or refresh if on dashboard
                            window.location.href = "/"; 
-                       } else {
-                           toast.error(result.message);
+                       } catch (error: any) {
+                           toast.error(error.message || "Failed to delete wallet");
                        }
                     }}
                     className="bg-red-600 hover:bg-red-700"

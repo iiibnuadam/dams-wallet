@@ -10,7 +10,7 @@ export function FixedFlexRatio({ data }: { data: { fixed: number, variable: numb
       <CardHeader>
         <CardTitle>Fixed vs Variable Cost</CardTitle>
         <CardDescription>
-          Ideally, Fixed Cost (Debt, Bills) should be below 50-60%.
+          Idealnya, Biaya Tetap (seperti Hutang & Tagihan Bulanan) harus di bawah 50-60%.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -44,8 +44,8 @@ export function FixedFlexRatio({ data }: { data: { fixed: number, variable: numb
         
         <p className="text-xs text-muted-foreground text-center">
             {data.ratio > 60 
-             ? "⚠️ Your fixed costs are high. Try to lower debt or recurring bills." 
-             : "✅ Healthy ratio! You have good financial flexibility."}
+             ? "⚠️ Biaya tetap Anda terlalu tinggi. Cobalah untuk mengurangi hutang atau tagihan rutin bulanan." 
+             : "✅ Rasio yang sehat! Anda memiliki fleksibilitas keuangan yang baik."}
         </p>
       </CardContent>
     </Card>

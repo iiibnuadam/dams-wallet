@@ -16,7 +16,7 @@ export function ContributionRadar({ data }: { data: any[] }) {
       <CardHeader>
         <CardTitle>Spending Contribution</CardTitle>
         <CardDescription>
-          Who pays for what? (Couple Dynamics)
+          Melihat dinamika kontribusi pengeluaran berdasarkan masing-masing anggota.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">

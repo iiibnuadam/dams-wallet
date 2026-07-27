@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function GoalStatus({ goals }: { goals: any[] }) {
-  const activeGoals = goals.slice(0, 3);
+  const activeGoals = goals.filter(g => !g.isCompleted).slice(0, 3);
 
   if (activeGoals.length === 0) return null;
 

@@ -2,8 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getAnalyticsDataAction } from "@/actions/analytics";
 import { AnalyticsSkeleton } from "@/components/skeletons";
+import { getDashboardData } from "@/services/dashboard.service";
+import { getFinancialHealthData } from "@/services/financial-health.service";
 import { AnalyticsControls } from "@/components/analytics/AnalyticsControls";
 import { SmartSummary } from "@/components/analytics/health/SmartSummary";
 import { NetWorthChart } from "@/components/analytics/health/NetWorthChart";
@@ -35,14 +36,28 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
 
     const { data, isLoading } = useQuery({
         queryKey: ["analytics", viewToUse, params],
-        queryFn: () => getAnalyticsDataAction(viewToUse, params)
+        queryFn: async () => {
+            const [dashboardData, healthData] = await Promise.all([
+                getDashboardData(viewToUse, params),
+                getFinancialHealthData(viewToUse, params)
+            ]);
+            return { dashboardData, healthData };
+        }
     });
 
     if (isLoading || !data) return <AnalyticsSkeleton />;
 
     const { dashboardData, healthData } = data;
     const { expenseByCategory, incomeByCategory, dailyTrend, period, summary } = dashboardData;
-    const { trend, macroStats, fixedVsVariable, radarData, liabilities, insights } = healthData;
+    const healthDataToUse = healthData || {
+        trend: [],
+        macroStats: { currentNetWorth: 0, totalIncome: 0, totalExpense: 0, savingsRate: 0 },
+        fixedVsVariable: { fixed: 0, variable: 0, ratio: 0 },
+        radarData: [],
+        liabilities: [],
+        insights: []
+    };
+    const { trend, fixedVsVariable, radarData, liabilities, insights } = healthDataToUse;
 
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -51,10 +66,10 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                    <div>
                         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                            Financial Analytics
+                            Analitik Keuangan
                             <BarChart3 className="w-6 h-6" />
                         </h1>
-                        <p className="text-muted-foreground">Comprehensive health check & reports.</p>
+                        <p className="text-muted-foreground">Pemeriksaan kesehatan keuangan & laporan komprehensif.</p>
                    </div>
                </div>
                
@@ -64,8 +79,8 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
 
         {/* 2. Macro View */}
         <section className="space-y-4">
-             <h2 className="text-xl font-semibold flex items-center gap-2">1. Macro View <span className="text-sm font-normal text-muted-foreground">(Trend & Cash Flow)</span></h2>
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+             <h2 className="text-xl font-semibold flex items-center gap-2">1. Makro <span className="text-sm font-normal text-muted-foreground">(Tren & Arus Kas)</span></h2>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <NetWorthChart data={trend} />
                  <CashFlowChart data={trend} />
              </div>
@@ -92,7 +107,7 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
         {/* 4. Detailed Future & Liabilities */}
         {liabilities.length > 0 && (
             <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">3. Freedom Roadmap <span className="text-sm font-normal text-muted-foreground">(Liabilities)</span></h2>
+                <h2 className="text-xl font-semibold flex items-center gap-2">3. Peta Kebebasan Finansial <span className="text-sm font-normal text-muted-foreground">(Hutang & Cicilan)</span></h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {liabilities.map((item: any, i: number) => (
@@ -111,11 +126,11 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
                                     </div>
                                     <Progress value={item.progress} className="h-2" />
                                     <div className="flex justify-between text-xs text-muted-foreground pt-2">
-                                        <span>{item.monthsPassed} months paid</span>
-                                        <span>{item.monthsLeft} months left</span>
+                                        <span>{item.monthsPassed} bln dibayar</span>
+                                        <span>{item.monthsLeft} bln tersisa</span>
                                     </div>
                                     <div className="text-center mt-4 p-2 bg-zinc-100 dark:bg-zinc-800 rounded text-sm text-zinc-600 dark:text-zinc-400">
-                                        Freedom in approx. <strong>{(item.monthsLeft / 12).toFixed(1)} years</strong>
+                                        Lunas dalam waktu sekitar <strong>{(item.monthsLeft / 12).toFixed(1)} tahun</strong>
                                     </div>
                                 </div>
                             </CardContent>

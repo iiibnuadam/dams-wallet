@@ -35,8 +35,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { TransactionType } from "@/types/transaction"; 
 
-import { createTransaction } from "@/actions/transaction";
-import { getCategoriesAction } from "@/actions/category-actions";
+import { createTransaction } from "@/services/transaction.service";
+import { CategoryService } from "@/services/category.service";
 import { Plus, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -136,7 +136,7 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-      getCategoriesAction().then(setCategories);
+      CategoryService.getCategories().then(setCategories).catch(console.error);
      // Set default date on client side only
      form.setValue("date", new Date().toISOString().split('T')[0]);
   }, []);
@@ -175,55 +175,54 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const formData = new FormData();
-    formData.append("amount", values.amount);
-    formData.append("description", values.description || "");
-    formData.append("type", values.type);
-    formData.append("wallet", values.wallet);
-    if (values.category) formData.append("category", values.category);
-    formData.append("date", values.date);
-    if (defaultGoalItemId) {
-        formData.append("goalItem", defaultGoalItemId);
-    }
+    const payload: any = {
+        amount: Number(values.amount),
+        description: values.description || "",
+        type: values.type,
+        wallet: values.wallet,
+        date: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
+    };
+    
+    if (values.category) payload.category = values.category;
+    if (defaultGoalItemId) payload.goalItem = defaultGoalItemId;
     
     if (values.type === ClientTransactionType.TRANSFER) {
         if (values.targetWallet) {
-            formData.append("targetWallet", values.targetWallet);
+            payload.targetWallet = values.targetWallet;
         } else {
             form.setError("targetWallet", { message: "Target wallet required" });
             return;
         }
         if (values.adminFee) {
-            formData.append("adminFee", values.adminFee.toString());
+            payload.adminFee = values.adminFee;
         }
     }
 
-    const result = await createTransaction(null, formData);
-
-    if (result.success) {
-      setOpen(false);
-      form.reset({
-          amount: "",
-          description: "",
-          type: activeTab as ClientTransactionType,
-          category: "",
-          wallet: defaultWalletId || "",
-          targetWallet: "",
-          date: new Date().toISOString().split('T')[0],
-      });
-      toast.success("Transaction added");
-      if (onSuccess) {
-          onSuccess();
-      } else if (successBehavior === 'refresh') {
-          // Trigger custom event for client components to listen to
-          window.dispatchEvent(new CustomEvent('transaction-added'));
-          router.refresh();
-      } else {
-          window.location.reload(); 
-      }
-    } else {
-      console.log(result)
-        toast.error(result.message);
+    try {
+        await createTransaction(payload);
+        
+        setOpen(false);
+        form.reset({
+            amount: "",
+            description: "",
+            type: activeTab as ClientTransactionType,
+            category: "",
+            wallet: defaultWalletId || "",
+            targetWallet: "",
+            date: new Date().toISOString().split('T')[0],
+        });
+        toast.success("Transaction added");
+        if (onSuccess) {
+            onSuccess();
+        } else if (successBehavior === 'refresh') {
+            window.dispatchEvent(new CustomEvent('transaction-added'));
+            router.refresh();
+        } else {
+            window.location.reload(); 
+        }
+    } catch (error: any) {
+        console.error(error);
+        toast.error(error.message || "Failed to add transaction");
     }
   }
 
