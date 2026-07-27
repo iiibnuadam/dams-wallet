@@ -1,6 +1,6 @@
 "use client";
-
 import { useState, useEffect, useCallback } from "react";
+import { BudgetSkeleton } from "./BudgetSkeleton";
 import { BudgetService } from "@/services/budget.service";
 import { CategoryService } from "@/services/category.service";
 import { ICategory } from "@/types/category";
@@ -112,7 +112,7 @@ export default function BudgetDashboard() {
   }, [fetchData]);
 
   if (loading) {
-    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading budget...</div>;
+    return <BudgetSkeleton />;
   }
   if (!overview) return null;
 
