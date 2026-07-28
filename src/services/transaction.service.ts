@@ -41,6 +41,13 @@ export async function createTransaction(data: any) {
   });
 }
 
+export async function createBatchTransactions(data: any[]) {
+  return apiFetch<{ inserted: number }>("/transactions/batch", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function getTransactions(params: any): Promise<TransactionListResult> {
   return apiFetch<TransactionListResult>("/transactions", {
     params,

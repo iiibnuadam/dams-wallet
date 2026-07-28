@@ -10,8 +10,13 @@ import { cn } from "@/lib/utils";
 import { TransactionSummaryStats } from "@/components/transactions/TransactionSummaryStats";
 
 import { useSession } from "next-auth/react";
+import { useState } from "react";
+import { TransactionImportModal } from "./TransactionImportModal";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 
 export function TransactionsView() {
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { data: session } = useSession();
     const currentUser = session?.user?.username || "ADAM";
     const partnerUser = currentUser === "SASTI" ? "ADAM" : "SASTI";
@@ -34,13 +39,20 @@ export function TransactionsView() {
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-10">
             <main className="max-w-7xl mx-auto px-4 py-8 space-y-3">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        Transactions History
-                        <History className="w-6 h-6" />
-                    </h1>
-                    <p className="text-muted-foreground">View and filter your financial activity.</p>
+                <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                            Transactions History
+                            <History className="w-6 h-6" />
+                        </h1>
+                        <p className="text-muted-foreground">View and filter your financial activity.</p>
+                    </div>
+                    <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import
+                    </Button>
                 </div>
+                <TransactionImportModal open={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
 
                 <div className="space-y-4">
                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
