@@ -248,6 +248,33 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         }).format(amount);
     };
 
+    const handleCopyAllBudgetBreakdown = useCallback(() => {
+        const formatItem = (i: any, indent: string) => 
+            `${indent}- ${i.name} (Target: ${formatCurrency(i.estimatedAmount || 0)}, Aktual: ${formatCurrency(i.actualAmount || 0)})`;
+
+        const collectGroupText = (n: GroupNode, indent: string = ""): string => {
+            let res = `${indent}${n.name}:\n`;
+            if (n.items && n.items.length > 0) {
+                res += n.items.map((i: any) => formatItem(i, indent + "  ")).join('\n') + "\n";
+            }
+            n.children?.forEach(c => {
+                res += collectGroupText(c, indent + "  ");
+            });
+            return res;
+        };
+
+        let text = `Budget Breakdown: ${goal?.name || "Goal"}\n`;
+        text += `Total Target: ${formatCurrency(goal?.targetAmount || 0)}, Total Aktual: ${formatCurrency(goal?.currentAmount || 0)}\n\n`;
+        
+        rootNodes.forEach(root => {
+            text += collectGroupText(root, "");
+            text += "\n";
+        });
+
+        navigator.clipboard.writeText(text.trim());
+        toast.success("Seluruh budget breakdown dicopy ke clipboard");
+    }, [goal, rootNodes]);
+
     const goalColor = goal.color || '#6366f1';
 
 
@@ -948,6 +975,16 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
                                 Budget Breakdown
                             </h3>
                             <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCopyAllBudgetBreakdown}
+                                    className="h-9 px-3 gap-2"
+                                    title="Copy All Budget Breakdown"
+                                >
+                                    <Copy className="w-4 h-4" />
+                                    <span className="text-xs font-medium hidden sm:inline">Copy All</span>
+                                </Button>
                                 <Button 
                                     size="sm" 
                                     variant={isEditMode ? "secondary" : "ghost"}
