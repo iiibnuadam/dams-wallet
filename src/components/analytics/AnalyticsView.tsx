@@ -6,7 +6,8 @@ import { AnalyticsSkeleton } from "@/components/skeletons";
 import { getDashboardData } from "@/services/dashboard.service";
 import { getFinancialHealthData } from "@/services/financial-health.service";
 import { AnalyticsControls } from "@/components/analytics/AnalyticsControls";
-import { SmartSummary } from "@/components/analytics/health/SmartSummary";
+import { InsightsPanel } from "@/components/insights/InsightsPanel";
+import { useInsights } from "@/hooks/useInsights";
 import { NetWorthChart } from "@/components/analytics/health/NetWorthChart";
 import { CashFlowChart } from "@/components/analytics/health/CashFlowChart";
 import { FixedFlexRatio } from "@/components/analytics/health/FixedFlexRatio";
@@ -34,6 +35,8 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
 
     const viewToUse = params.view || initialView;
 
+    const insightsQuery = useInsights(params.month, viewToUse);
+
     const { data, isLoading } = useQuery({
         queryKey: ["analytics", viewToUse, params],
         queryFn: async () => {
@@ -57,7 +60,7 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
         liabilities: [],
         insights: []
     };
-    const { trend, fixedVsVariable, radarData, liabilities, insights } = healthDataToUse;
+    const { trend, fixedVsVariable, radarData, liabilities } = healthDataToUse;
 
     return (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -74,7 +77,7 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
                </div>
                
                <AnalyticsControls defaultView={viewToUse} />
-               <SmartSummary insights={insights} />
+               <InsightsPanel data={insightsQuery.data} isLoading={insightsQuery.isLoading} period={params.month} owner={viewToUse} />
             </div>
 
         {/* 2. Macro View */}
@@ -152,7 +155,10 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
             expenseByCategory,
             incomeByCategory,
             monthlyTrend: trend, // Use the better trend data
-            dailyTrend
+            dailyTrend,
+            insights: insightsQuery.data
+                ? { signals: insightsQuery.data.signals, talkingPoints: insightsQuery.data.talkingPoints }
+                : undefined
         }} />
       </main>
     );

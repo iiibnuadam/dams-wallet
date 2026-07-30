@@ -6,6 +6,16 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 
+interface InsightSignal {
+    title: string;
+    narrative: string;
+    value: string;
+}
+
+interface InsightTalkingPoint {
+    question: string;
+}
+
 interface ReportData {
     period: { start: Date; end: Date };
     summary: { income: number; expense: number; net: number };
@@ -13,6 +23,7 @@ interface ReportData {
     incomeByCategory: { name: string; value: number }[];
     monthlyTrend: any[]; // Adjust type if needed
     dailyTrend: any[];
+    insights?: { signals: InsightSignal[]; talkingPoints: InsightTalkingPoint[] };
 }
 
 export function AnalyticsExportListener({ data }: { data: ReportData }) {
@@ -57,6 +68,29 @@ export function AnalyticsExportListener({ data }: { data: ReportData }) {
                  ]),
              });
 
+             // Insights & Talking Points
+             if (data.insights && data.insights.signals.length > 0) {
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 const insightsY = (doc as any).lastAutoTable.finalY + 10;
+                 doc.text("Insights & Talking Points", 14, insightsY);
+
+                 autoTable(doc, {
+                     startY: insightsY + 5,
+                     head: [['Insight', 'Value', 'Narrative']],
+                     body: data.insights.signals.map(s => [s.title, s.value, s.narrative]),
+                 });
+
+                 if (data.insights.talkingPoints.length > 0) {
+                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                     const talkingPointsY = (doc as any).lastAutoTable.finalY + 10;
+                     autoTable(doc, {
+                         startY: talkingPointsY,
+                         head: [['Discussion Question']],
+                         body: data.insights.talkingPoints.map(tp => [tp.question]),
+                     });
+                 }
+             }
+
              doc.save("financial-report.pdf");
         };
         
@@ -85,6 +119,22 @@ export function AnalyticsExportListener({ data }: { data: ReportData }) {
              // Sheet 4: Daily Trend
              const wsDaily = XLSX.utils.json_to_sheet(data.dailyTrend);
              XLSX.utils.book_append_sheet(wb, wsDaily, "Daily Trend");
+
+             // Sheet 5: Insights
+             if (data.insights && data.insights.signals.length > 0) {
+                 const wsInsights = XLSX.utils.json_to_sheet(
+                     data.insights.signals.map(s => ({ Title: s.title, Value: s.value, Narrative: s.narrative }))
+                 );
+                 XLSX.utils.book_append_sheet(wb, wsInsights, "Insights");
+
+                 // Sheet 6: Talking Points
+                 if (data.insights.talkingPoints.length > 0) {
+                     const wsTalkingPoints = XLSX.utils.json_to_sheet(
+                         data.insights.talkingPoints.map(tp => ({ Question: tp.question }))
+                     );
+                     XLSX.utils.book_append_sheet(wb, wsTalkingPoints, "Talking Points");
+                 }
+             }
 
              XLSX.writeFile(wb, "financial-report.xlsx");
         };

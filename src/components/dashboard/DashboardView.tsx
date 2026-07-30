@@ -14,6 +14,8 @@ import Link from "next/link";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { useSearchParams } from "next/navigation";
 import { AnalyticsControls } from "@/components/analytics/AnalyticsControls";
+import { InsightsPanel } from "@/components/insights/InsightsPanel";
+import { useInsights } from "@/hooks/useInsights";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DashboardView({ initialView }: { initialView: string }) {
@@ -63,8 +65,10 @@ export function DashboardView({ initialView }: { initialView: string }) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function DashboardContent({ data, wallets, currentView, params }: { data: any, wallets: any[], currentView: string, params:any }) {
     const { summary, recentTransactions, expenseByCategory, incomeByCategory, goals, debtStats } = data;
-    
+
     const netWorth = wallets.reduce((sum: number, w: any) => sum + (w.currentBalance || 0), 0);
+
+    const insightsQuery = useInsights();
 
     return (
         <div className="space-y-6">
@@ -135,6 +139,10 @@ function DashboardContent({ data, wallets, currentView, params }: { data: any, w
                  );
              })()}
         </section>
+
+        {/* Insights & Talking Points */}
+        {/* No period/owner props: matches the useInsights() call above, both default to current month / all owners */}
+        <InsightsPanel data={insightsQuery.data} isLoading={insightsQuery.isLoading} />
 
         {/* Analytics Controls & Summary */}
         <section className="space-y-4">
