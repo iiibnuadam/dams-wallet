@@ -62,8 +62,7 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
     headers,
   });
 
-  const text = await response.text();
-  const result = text ? JSON.parse(text) : {};
+  const result = await parseApiResponse(response);
 
   if (!response.ok || (result.code && result.code >= 400)) {
     throw new Error(result.message || "Something went wrong");
@@ -71,6 +70,20 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
 
   // Backend wraps data in { code: 200, status: "OK", data: ... }
   return result.data as T;
+}
+
+// Backend responses should always be JSON, but gateway/timeout/rate-limit
+// failures can return an HTML error page instead -- parse defensively so a
+// malformed body surfaces as a normal thrown Error (caught by react-query /
+// the caller) rather than an uncaught SyntaxError that crashes the page.
+async function parseApiResponse(response: Response): Promise<{ code?: number; message?: string; data?: unknown }> {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Server returned an unexpected response (status ${response.status}).`);
+  }
 }
 
 // Helper for server-side calls where we already have the token
@@ -99,8 +112,7 @@ export async function apiFetchServer<T>(endpoint: string, token: string, options
     headers,
   });
 
-  const text = await response.text();
-  const result = text ? JSON.parse(text) : {};
+  const result = await parseApiResponse(response);
   if (!response.ok || (result.code && result.code >= 400)) {
     throw new Error(result.message || "Something went wrong");
   }
