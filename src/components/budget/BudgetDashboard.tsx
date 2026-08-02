@@ -28,7 +28,29 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ENVELOPE_ICONS = ["💰", "🏠", "🍔", "🚗", "🛒", "🎮", "✈️", "💊", "🎓", "👶", "🐶", "💡", "📱", "🎁", "⚡", "🏋️"];
-const ENVELOPE_COLORS = ["#6366f1", "#f97316", "#10b981", "#ef4444", "#0ea5e9", "#a855f7", "#f59e0b", "#14b8a6", "#ec4899", "#64748b"];
+
+// Same hue range as the category color picker (3 shades x ~17 hues) so
+// envelopes have just as much variety to pick from.
+const ENVELOPE_COLORS = [
+  "#64748b", "#71717a", "#78716c", "#262626", // slate / zinc / stone / neutral
+  "#fca5a5", "#ef4444", "#b91c1c", // red 300/500/700
+  "#fdba74", "#f97316", "#c2410c", // orange
+  "#fcd34d", "#f59e0b", "#b45309", // amber
+  "#fde047", "#eab308", "#a16207", // yellow
+  "#bef264", "#84cc16", "#4d7c0f", // lime
+  "#86efac", "#22c55e", "#15803d", // green
+  "#6ee7b7", "#10b981", "#047857", // emerald
+  "#5eead4", "#14b8a6", "#0f766e", // teal
+  "#67e8f9", "#06b6d4", "#0e7490", // cyan
+  "#7dd3fc", "#0ea5e9", "#0369a1", // sky
+  "#93c5fd", "#3b82f6", "#1d4ed8", // blue
+  "#a5b4fc", "#6366f1", "#4338ca", // indigo
+  "#c4b5fd", "#8b5cf6", "#6d28d9", // violet
+  "#d8b4fe", "#a855f7", "#7e22ce", // purple
+  "#f0abfc", "#d946ef", "#a21caf", // fuchsia
+  "#f9a8d4", "#ec4899", "#be185d", // pink
+  "#fda4af", "#f43f5e", "#be123c", // rose
+];
 
 // Older envelopes were created with a hardcoded "Wallet" placeholder before
 // icon picking existed -- fall back to the lucide icon only for those.
@@ -503,6 +525,59 @@ function EnvelopeCard({
   );
 }
 
+// ─── Icon / Color Picker ───────────────────────────────────────────────────────
+
+function IconColorPicker({
+  icon, color, onIconChange, onColorChange,
+}: {
+  icon: string;
+  color: string;
+  onIconChange: (v: string) => void;
+  onColorChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-3 w-64">
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-1.5">Icon</p>
+        <div className="flex flex-wrap gap-1.5">
+          {ENVELOPE_ICONS.map(ic => (
+            <button
+              key={ic}
+              type="button"
+              onClick={() => onIconChange(ic)}
+              className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all",
+                icon === ic ? "bg-primary/10 ring-2 ring-primary scale-105" : "hover:bg-muted"
+              )}
+            >
+              {ic}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-1.5">Color</p>
+        <div className="grid grid-cols-10 gap-1 max-h-32 overflow-y-auto">
+          {ENVELOPE_COLORS.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onColorChange(c)}
+              style={{ backgroundColor: c }}
+              className={cn(
+                "w-5 h-5 rounded-full shadow-sm transition-all",
+                color === c ? "ring-2 ring-offset-1 ring-zinc-400 dark:ring-offset-zinc-900 scale-110" : "hover:scale-110"
+              )}
+            >
+              {color === c && <Check className="w-3 h-3 text-white mx-auto drop-shadow" />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Manage Envelopes Dialog ──────────────────────────────────────────────────
 
 function ManageEnvelopesDialog({
@@ -526,7 +601,7 @@ function ManageEnvelopesDialog({
   const [addColor, setAddColor] = useState(ENVELOPE_COLORS[0]);
   const [addItems, setAddItems] = useState<EnvelopeItem[]>([]);
   const [categorySearch, setCategorySearch] = useState("");
-  const [editingItemsFor, setEditingItemsFor] = useState<string | null>(null);
+  const [editingItemsForIndex, setEditingItemsForIndex] = useState<number | null>(null);
   const [itemsSearch, setItemsSearch] = useState("");
 
   useEffect(() => {
@@ -540,7 +615,7 @@ function ManageEnvelopesDialog({
       setAddColor(ENVELOPE_COLORS[0]);
       setAddItems([]);
       setCategorySearch("");
-      setEditingItemsFor(null);
+      setEditingItemsForIndex(null);
       setItemsSearch("");
     }
   }, [open, envelopes, income]);
@@ -548,6 +623,16 @@ function ManageEnvelopesDialog({
   const handleSave = async () => {
     if (localEnvelopes.length === 0) {
       toast.error("Add at least one envelope");
+      return;
+    }
+    const trimmed = localEnvelopes.map(e => e.name.trim());
+    if (trimmed.some(n => !n)) {
+      toast.error("Envelope name can't be empty");
+      return;
+    }
+    const lower = trimmed.map(n => n.toLowerCase());
+    if (new Set(lower).size !== lower.length) {
+      toast.error("Two envelopes have the same name");
       return;
     }
     setSaving(true);
@@ -594,21 +679,22 @@ function ManageEnvelopesDialog({
     setActiveTab("manage");
   };
 
-  const handleRemove = (name: string) => {
-    setLocalEnvelopes(localEnvelopes.filter((e) => e.name !== name));
+  // Keyed by index, not name -- name is editable now, so it can't double as
+  // a stable identifier the way it used to.
+  const updateEnvelopeAt = (index: number, patch: Partial<EnvelopeOverview>) => {
+    setLocalEnvelopes(localEnvelopes.map((e, i) => (i === index ? { ...e, ...patch } : e)));
   };
 
-  const handleUpdateLimit = (name: string, limit: number) => {
-    setLocalEnvelopes(localEnvelopes.map((e) => (e.name === name ? { ...e, limit } : e)));
+  const handleRemove = (index: number) => {
+    setLocalEnvelopes(localEnvelopes.filter((_, i) => i !== index));
   };
 
-  const handleUpdateItems = (name: string, items: EnvelopeItem[]) => {
-    setLocalEnvelopes(localEnvelopes.map((e) => (e.name === name ? { ...e, items } : e)));
-  };
-
-  const handleUpdateType = (name: string, type: EnvelopeFrequency) => {
-    setLocalEnvelopes(localEnvelopes.map((e) => (e.name === name ? { ...e, type } : e)));
-  };
+  const handleUpdateLimit = (index: number, limit: number) => updateEnvelopeAt(index, { limit });
+  const handleUpdateItems = (index: number, items: EnvelopeItem[]) => updateEnvelopeAt(index, { items });
+  const handleUpdateType = (index: number, type: EnvelopeFrequency) => updateEnvelopeAt(index, { type });
+  const handleUpdateName = (index: number, name: string) => updateEnvelopeAt(index, { name });
+  const handleUpdateIcon = (index: number, icon: string) => updateEnvelopeAt(index, { icon });
+  const handleUpdateColor = (index: number, color: string) => updateEnvelopeAt(index, { color });
 
   // Keys already claimed by any envelope, optionally excluding one (so an
   // envelope's own items don't block themselves while being edited). Keyed
@@ -616,11 +702,11 @@ function ManageEnvelopesDialog({
   // is always tracked for the current month regardless of Type), so the
   // same category can't be reused across envelopes just because they have
   // different Types; it would show the identical Spent figure twice.
-  const buildUsedKeys = (excludeName?: string) => {
+  const buildUsedKeys = (excludeIndex?: number) => {
     const keys = new Set<string>();
-    localEnvelopes.forEach((e) => {
-      if (e.name === excludeName) return;
-      (e.items || []).forEach((i) => keys.add(itemKey(i.categoryId, i.owner)));
+    localEnvelopes.forEach((e, i) => {
+      if (i === excludeIndex) return;
+      (e.items || []).forEach((item) => keys.add(itemKey(item.categoryId, item.owner)));
     });
     return keys;
   };
@@ -665,34 +751,51 @@ function ManageEnvelopesDialog({
               </div>
             ) : (
               localEnvelopes.map((env, index) => {
-                const rowKey = env.name || `legacy-local-${index}`;
-                const isEditingItems = editingItemsFor === rowKey;
+                const isEditingItems = editingItemsForIndex === index;
                 return (
                   <div
-                    key={rowKey}
+                    key={index}
                     className={cn(
                       "rounded-xl border bg-card text-sm overflow-hidden transition-shadow",
                       isEditingItems ? "shadow-sm ring-1 ring-primary/20" : "hover:shadow-sm"
                     )}
                   >
                     <div className="flex items-center gap-3 p-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-inner text-lg"
-                        style={{ backgroundColor: env.color || "#6366f1" }}
-                      >
-                        {isEmojiIcon(env.icon) ? env.icon : <Wallet className="w-4 h-4" />}
-                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-inner text-lg hover:ring-2 hover:ring-primary/40 transition-all"
+                            style={{ backgroundColor: env.color || "#6366f1" }}
+                          >
+                            {isEmojiIcon(env.icon) ? env.icon : <Wallet className="w-4 h-4" />}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-3" align="start">
+                          <IconColorPicker
+                            icon={env.icon}
+                            color={env.color}
+                            onIconChange={(v) => handleUpdateIcon(index, v)}
+                            onColorChange={(v) => handleUpdateColor(index, v)}
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{env.name}</p>
+                        <input
+                          type="text"
+                          value={env.name}
+                          onChange={(e) => handleUpdateName(index, e.target.value)}
+                          className="font-semibold truncate bg-transparent outline-none w-full rounded px-0.5 -mx-0.5 focus:ring-1 focus:ring-primary/30"
+                        />
                         <div className="flex items-center gap-1 -ml-1.5">
                           <button
                             type="button"
                             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 pl-1.5"
                             onClick={() => {
                               if (isEditingItems) {
-                                setEditingItemsFor(null);
+                                setEditingItemsForIndex(null);
                               } else {
-                                setEditingItemsFor(rowKey);
+                                setEditingItemsForIndex(index);
                                 setItemsSearch("");
                               }
                             }}
@@ -701,7 +804,7 @@ function ManageEnvelopesDialog({
                             <ChevronDown className={cn("w-3 h-3 transition-transform", isEditingItems && "rotate-180")} />
                           </button>
                           <span className="text-muted-foreground/40 text-xs">&middot;</span>
-                          <Select value={env.type} onValueChange={(v) => handleUpdateType(env.name, v as EnvelopeFrequency)}>
+                          <Select value={env.type} onValueChange={(v) => handleUpdateType(index, v as EnvelopeFrequency)}>
                             <SelectTrigger className="h-5 w-auto border-none shadow-none px-1.5 text-xs gap-1 text-muted-foreground hover:text-foreground focus:ring-0">
                               <SelectValue />
                             </SelectTrigger>
@@ -715,10 +818,10 @@ function ManageEnvelopesDialog({
                       </div>
                       <MoneyInput
                         value={env.limit}
-                        onValueChange={(val) => handleUpdateLimit(env.name, Number(val))}
+                        onValueChange={(val) => handleUpdateLimit(index, Number(val))}
                         className="w-24 h-8 text-right shrink-0"
                       />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50" onClick={() => handleRemove(env.name)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50" onClick={() => handleRemove(index)}>
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
@@ -727,8 +830,8 @@ function ManageEnvelopesDialog({
                         <CategoryItemPicker
                           categories={categories}
                           selectedItems={env.items || []}
-                          usedKeys={buildUsedKeys(env.name)}
-                          onChange={(items) => handleUpdateItems(env.name, items)}
+                          usedKeys={buildUsedKeys(index)}
+                          onChange={(items) => handleUpdateItems(index, items)}
                           search={itemsSearch}
                           onSearchChange={setItemsSearch}
                         />
@@ -773,38 +876,12 @@ function ManageEnvelopesDialog({
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              {ENVELOPE_ICONS.map(ic => (
-                <button
-                  key={ic}
-                  type="button"
-                  onClick={() => setAddIcon(ic)}
-                  className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center text-base transition-all",
-                    addIcon === ic ? "bg-primary/10 ring-2 ring-primary scale-105" : "hover:bg-muted"
-                  )}
-                >
-                  {ic}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {ENVELOPE_COLORS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setAddColor(c)}
-                  style={{ backgroundColor: c }}
-                  className={cn(
-                    "w-6 h-6 rounded-full shadow-sm transition-all",
-                    addColor === c ? "ring-2 ring-offset-2 ring-zinc-400 dark:ring-offset-zinc-900 scale-110" : "hover:scale-110"
-                  )}
-                >
-                  {addColor === c && <Check className="w-3 h-3 text-white mx-auto drop-shadow" />}
-                </button>
-              ))}
-            </div>
+            <IconColorPicker
+              icon={addIcon}
+              color={addColor}
+              onIconChange={setAddIcon}
+              onColorChange={setAddColor}
+            />
 
             <CategoryItemPicker
               categories={categories}
