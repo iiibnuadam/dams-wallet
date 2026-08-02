@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Trash2, ArrowRight } from "lucide-react";
+import { Trash2, ArrowRight, Pencil } from "lucide-react";
 import * as TransactionService from "@/services/transaction.service";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useWallets } from "@/hooks/useWallets";
+import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 
 import { getCategoryColor } from "@/lib/category-utils";
 import {
@@ -33,8 +35,16 @@ interface TransactionDetailDialogProps {
 export function TransactionDetailDialog({ transaction, open, onOpenChange, customDeleteAction, onDeleteSuccess }: TransactionDetailDialogProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
+    // Full wallet list regardless of the current page's owner filter, so the
+    // edit form's wallet dropdown can pick any wallet.
+    const { data: allWallets } = useWallets("ALL");
 
     if (!transaction) return null;
+
+    // Goal payments are edited from the Goal Detail page's dedicated flow,
+    // not this generic dialog -- same reasoning as the Delete carve-out below.
+    const isGoalLinked = !!transaction.goalItem;
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -167,7 +177,21 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
                     </div>
 
                     {/* Actions */}
-                    <div className="pt-4">
+                    <div className="pt-4 space-y-3">
+                        {/* Edit visibility is gated on isGoalLinked alone, independent of the
+                            Delete carve-out below -- customDeleteAction is just wiring for
+                            which delete function to call, not a goal-awareness signal, and
+                            TransactionList always passes one. */}
+                        {!isGoalLinked && (
+                            <Button
+                                variant="outline"
+                                className="w-full gap-2"
+                                onClick={() => setEditOpen(true)}
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Edit Transaction
+                            </Button>
+                        )}
                         {transaction.goalItem && !customDeleteAction ? (
                             <div className="space-y-3">
                                 <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-600 dark:text-blue-400">
@@ -183,16 +207,16 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
                             </div>
                         ) : (
                             <>
-                                <Button 
-                                    variant="destructive" 
-                                    className="w-full gap-2" 
+                                <Button
+                                    variant="destructive"
+                                    className="w-full gap-2"
                                     onClick={() => setShowDeleteAlert(true)}
                                     disabled={isDeleting}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                     Delete Transaction
                                 </Button>
-                                <p className="text-center text-xs text-muted-foreground mt-2">
+                                <p className="text-center text-xs text-muted-foreground -mt-1">
                                     Deleting this will automatically revert balances.
                                 </p>
                             </>
@@ -200,6 +224,19 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, custo
                     </div>
                 </div>
             </ResponsiveDialog>
+
+            {!isGoalLinked && (
+                <AddTransactionDialog
+                    wallets={allWallets || []}
+                    transaction={transaction}
+                    open={editOpen}
+                    onOpenChange={setEditOpen}
+                    onSuccess={() => {
+                        setEditOpen(false);
+                        onOpenChange(false);
+                    }}
+                />
+            )}
 
             <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
                 <AlertDialogContent>

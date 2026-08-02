@@ -78,6 +78,27 @@ export function useCreateTransaction() {
     });
 }
 
+export function useUpdateTransaction() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, ...payload }: { id: string } & Record<string, any>) => {
+             await TransactionService.updateTransaction(id, payload);
+             return { code: 200, status: "Success", message: "Transaction updated successfully" };
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['wallets'] });
+            // Unconditional (unlike create) -- the update payload never
+            // carries goalItem, so there's nothing to key a conditional
+            // check on; just invalidate in case an edit ever does touch one.
+            queryClient.invalidateQueries({ queryKey: ['goals'] });
+            queryClient.invalidateQueries({ queryKey: ['goal'] });
+        }
+    });
+}
+
 export function useDeleteTransaction() {
     const queryClient = useQueryClient();
     

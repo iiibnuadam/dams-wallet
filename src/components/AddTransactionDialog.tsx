@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { TransactionType } from "@/types/transaction"; 
 
 import { createTransaction } from "@/services/transaction.service";
+import { useUpdateTransaction } from "@/hooks/useTransactions";
 import { CategoryService } from "@/services/category.service";
 import { Plus, Loader2 } from "lucide-react";
 import { useEffect } from "react";
@@ -67,24 +68,52 @@ interface WalletOption {
     name: string;
 }
 
+// The subset of a populated transaction needed to prefill the edit form.
+// Presence of this prop is what puts the dialog into edit mode.
+interface EditableTransaction {
+    _id: string;
+    amount: number;
+    description?: string;
+    type: string;
+    wallet: { _id: string; name: string };
+    targetWallet?: { _id: string; name: string };
+    category?: { _id: string; name: string };
+    date: string;
+    adminFee?: number;
+}
 
 interface AddTransactionDialogProps {
-    wallets: WalletOption[]; 
+    wallets: WalletOption[];
     defaultWalletId?: string;
     trigger?: React.ReactNode;
     defaultGoalItemId?: string;
     defaultDescription?: string;
     onSuccess?: () => void;
     successBehavior?: 'reload' | 'refresh';
+    // Edit mode: pass the transaction to edit, plus controlled open state
+    // (no default trigger button is rendered in this mode).
+    transaction?: EditableTransaction;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 
-export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaultGoalItemId, defaultDescription, onSuccess, successBehavior = 'reload' }: AddTransactionDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaultGoalItemId, defaultDescription, onSuccess, successBehavior = 'reload', transaction, open: controlledOpen, onOpenChange: onOpenChangeProp }: AddTransactionDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (isControlled) {
+      onOpenChangeProp?.(v);
+    } else {
+      setInternalOpen(v);
+    }
+  };
   const [activeTab, setActiveTab] = useState<string>(ClientTransactionType.EXPENSE);
   const params = useParams();
   const router = useRouter();
-  
+  const updateMutation = useUpdateTransaction();
+
   // Determine if we are in a specific wallet context from URL params if not explicitly passed
   // (Note: params.id might serve other purposes in other routes, so be careful. 
   // But for /wallets/[id], it is the wallet id. AddTransactionDialog is likely used in contexts where if 'id' exists it's a wallet or completely unrelated.
@@ -101,7 +130,10 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   // BUT avoid locking if we just fell back to first wallet in the absence of any context (which we handle in defaultValues below, not here).
   // Wait, layout.tsx previously passed wallets[0]._id if nothing else. We will change layout.tsx to pass undefined.
   
-  const isLocked = !!effectiveDefaultWalletId;
+  // Never lock the wallet field while editing -- fixing a wrong wallet is
+  // exactly the kind of correction Edit exists for, including from a
+  // /wallets/[id] page where effectiveDefaultWalletId would otherwise lock it.
+  const isLocked = !transaction && !!effectiveDefaultWalletId;
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -118,8 +150,10 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   });
 
   // Sync wallet selection with URL params or props when dialog opens
+  // (skipped in edit mode -- the prefill effect below owns the wallet field then).
   useEffect(() => {
       if (open) {
+           if (transaction) return;
            const targetWalletId = defaultWalletId || (params?.id as string);
            // Only set if we have a target and it exists in our list
            if (targetWalletId && Array.isArray(wallets)) {
@@ -131,7 +165,24 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
            }
            form.setValue("wallet", "");
       }
-  }, [open, params?.id, defaultWalletId, wallets, form]);
+  }, [open, params?.id, defaultWalletId, wallets, form, transaction]);
+
+  // Prefill the form when editing an existing transaction.
+  useEffect(() => {
+      if (open && transaction) {
+          setActiveTab(transaction.type);
+          form.reset({
+              amount: String(transaction.amount),
+              description: transaction.description || "",
+              type: transaction.type as ClientTransactionType,
+              category: transaction.category?._id || "",
+              wallet: transaction.wallet._id,
+              targetWallet: transaction.targetWallet?._id || "",
+              adminFee: transaction.adminFee || 0,
+              date: new Date(transaction.date).toISOString().split('T')[0],
+          });
+      }
+  }, [open, transaction, form]);
 
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -184,8 +235,8 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
     };
     
     if (values.category) payload.category = values.category;
-    if (defaultGoalItemId) payload.goalItem = defaultGoalItemId;
-    
+    if (!transaction && defaultGoalItemId) payload.goalItem = defaultGoalItemId;
+
     if (values.type === ClientTransactionType.TRANSFER) {
         if (values.targetWallet) {
             payload.targetWallet = values.targetWallet;
@@ -199,8 +250,16 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
     }
 
     try {
+        if (transaction) {
+            await updateMutation.mutateAsync({ id: transaction._id, ...payload });
+            setOpen(false);
+            toast.success("Transaction updated");
+            onSuccess?.();
+            return;
+        }
+
         await createTransaction(payload);
-        
+
         setOpen(false);
         form.reset({
             amount: "",
@@ -218,25 +277,25 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
             window.dispatchEvent(new CustomEvent('transaction-added'));
             router.refresh();
         } else {
-            window.location.reload(); 
+            window.location.reload();
         }
     } catch (error: any) {
         console.error(error);
-        toast.error(error.message || "Failed to add transaction");
+        toast.error(error.message || (transaction ? "Failed to update transaction" : "Failed to add transaction"));
     }
   }
 
   return (
-    <ResponsiveDialog 
-        open={open} 
+    <ResponsiveDialog
+        open={open}
         onOpenChange={setOpen}
-        title="Add Transaction"
-        description="Record your income, expense, or transfer."
-        trigger={trigger ? trigger : (
+        title={transaction ? "Edit Transaction" : "Add Transaction"}
+        description={transaction ? "Update the details of this transaction." : "Record your income, expense, or transfer."}
+        trigger={transaction ? null : (trigger ? trigger : (
             <Button size="sm" className="gap-2">
                 <Plus className="w-4 h-4" /> Add Transaction
             </Button>
-        )}
+        ))}
     >
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -413,7 +472,7 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
                         Saving...
                     </>
                 ) : (
-                    "Save Transaction"
+                    transaction ? "Update Transaction" : "Save Transaction"
                 )}
               </Button>
             </DialogFooter>

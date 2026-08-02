@@ -4,11 +4,11 @@
 import { ViewToggle } from "@/components/dashboard/ViewToggle";
 import { MonthlySummary } from "@/components/dashboard/MonthlySummary";
 import { PendingTransactions } from "@/components/dashboard/PendingTransactions";
-import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
 import { GoalStatus } from "@/components/dashboard/GoalStatus";
 import { SimpleWalletItem } from "@/components/SimpleWalletItem";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { useSearchParams } from "next/navigation";
@@ -67,6 +67,9 @@ function DashboardContent({ data, wallets, currentView, params }: { data: any, w
 
     const netWorth = wallets.reduce((sum: number, w: any) => sum + (w.currentBalance || 0), 0);
 
+    // Hidden by default, like a bank app -- click the eye to reveal.
+    const [showNetWorth, setShowNetWorth] = useState(false);
+
     // owner follows the ViewToggle tabs already rendered below (ALL/Adam/Sasti);
     // period stays pinned to the current calendar month.
     const insightsQuery = useInsights(undefined, currentView);
@@ -90,10 +93,20 @@ function DashboardContent({ data, wallets, currentView, params }: { data: any, w
                         <ViewToggle defaultView={currentView} />
                     </div>
                 </div>
-                <div className="relative z-10">
+                <div className="relative z-10 flex items-center gap-3">
                     <div className="text-4xl md:text-5xl font-bold tracking-tight text-cyan-700 dark:text-cyan-300">
-                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(netWorth)}
+                        {showNetWorth
+                            ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(netWorth)
+                            : "Rp ••••••••"}
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowNetWorth((v) => !v)}
+                        className="text-cyan-700/50 hover:text-cyan-700 dark:text-cyan-300/50 dark:hover:text-cyan-300 transition-colors shrink-0"
+                        aria-label={showNetWorth ? "Hide net worth" : "Show net worth"}
+                    >
+                        {showNetWorth ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                 </div>
              </div>
              
@@ -189,72 +202,45 @@ function DashboardContent({ data, wallets, currentView, params }: { data: any, w
                             expense={summary.expense}
                             net={summary.net}
                             periodLabel={periodLabel}
+                            incomeCategories={incomeByCategory}
+                            expenseCategories={expenseByCategory}
                          />
                      );
                  })()}
         </section>
+
+        {/* Budget Tracking */}
+        <BudgetTrackingCard />
 
         {/* Goals Section */}
         {goals && goals.length > 0 && (
             <GoalStatus goals={goals} />
         )}
 
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column: Wallets */}
-            <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">Wallets</h2>
-                     <Button variant="ghost" size="sm" asChild className="hidden text-muted-foreground hover:text-primary">
-                        <Link href="/wallets" className="flex items-center gap-1 text-xs">
-                             View All <ChevronRight className="w-3 h-3" />
-                        </Link>
-                     </Button>
-                </div>
-                
-                <div className="space-y-3">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {wallets.map((wallet: any) => (
-                        <SimpleWalletItem key={wallet._id} wallet={wallet} />
-                    ))}
-                    
-                    {wallets.length === 0 && (
-                        <div className="py-8 text-center text-zinc-500 bg-white dark:bg-zinc-900 rounded-lg border border-dashed text-sm">
-                            No wallets found.
-                        </div>
-                    )}
-                </div>
-            </section>
+        {/* Wallets */}
+        <section className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Wallets</h2>
+                 <Button variant="ghost" size="sm" asChild className="hidden text-muted-foreground hover:text-primary">
+                    <Link href="/wallets" className="flex items-center gap-1 text-xs">
+                         View All <ChevronRight className="w-3 h-3" />
+                    </Link>
+                 </Button>
+            </div>
 
-            {/* Right Column: Category Breakdown */}
-             <section className="space-y-4">
-                 <h2 className="text-xl font-semibold">Expense Breakdown</h2>
-                 {(() => {
-                    let periodLabel = "Month to Date"; // Default
-                    if (params.preset === "YTD") periodLabel = "Year to Date";
-                    else if (params.preset === "1Y") periodLabel = "Last 1 Year";
-                    else if (params.preset === "3M") periodLabel = "Last 3 Months";
-                    else if (params.preset === "1M") periodLabel = "Last 30 Days";
-                    else if (params.preset === "7D") periodLabel = "Last 7 Days";
-                    else if (params.preset === "MTD") periodLabel = "Month to Date";
-                    else if (params.preset === "ALL") periodLabel = "All Time";
-                     else if (params.mode === "RANGE" && params.startDate && params.endDate) {
-                        try {
-                            const start = new Date(params.startDate);
-                            const end = new Date(params.endDate);
-                            const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-                            const startStr = start.toLocaleDateString('en-US', options);
-                            const endStr = end.toLocaleDateString('en-US', options);
-                            periodLabel = `${startStr} - ${endStr}`;
-                        } catch (e) { periodLabel = "Selected Period"; }
-                     }
-                     return <CategoryBreakdown expenses={expenseByCategory} incomes={incomeByCategory} periodLabel={periodLabel} />;
-                 })()}
-            </section>
-        </div>
+            <div className="space-y-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {wallets.map((wallet: any) => (
+                    <SimpleWalletItem key={wallet._id} wallet={wallet} />
+                ))}
 
-        {/* Budget Tracking */}
-        <BudgetTrackingCard />
+                {wallets.length === 0 && (
+                    <div className="py-8 text-center text-zinc-500 bg-white dark:bg-zinc-900 rounded-lg border border-dashed text-sm">
+                        No wallets found.
+                    </div>
+                )}
+            </div>
+        </section>
 
       </div>
     );

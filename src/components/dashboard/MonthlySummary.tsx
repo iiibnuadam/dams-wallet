@@ -1,15 +1,70 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { getCategorySolidColor } from "@/lib/category-utils";
+
+interface CategoryData {
+  name: string;
+  value: number;
+  icon?: string;
+  color?: string;
+}
 
 interface MonthlySummaryProps {
   income: number;
   expense: number;
   net: number;
   periodLabel?: string;
+  // Optional -- when provided, the Income/Expense cards gain a collapsible
+  // "View Breakdown" section (same pattern as the Transactions page).
+  incomeCategories?: CategoryData[];
+  expenseCategories?: CategoryData[];
 }
 
-export function MonthlySummary({ income, expense, net, periodLabel = "Selected Period" }: MonthlySummaryProps) {
+function CategoryBreakdownList({ categories, total, type }: { categories: CategoryData[]; total: number; type: "INCOME" | "EXPENSE" }) {
+  if (!categories || categories.length === 0) {
+    return <p className="text-xs text-muted-foreground py-2">No data available</p>;
+  }
+  return (
+    <div className="space-y-2 pt-2">
+      {categories.map((cat, idx) => {
+        const percentage = total > 0 ? (cat.value / total) * 100 : 0;
+        const isTailwindClass = cat.color?.startsWith("bg-");
+        const fallbackColor = getCategorySolidColor(cat.name);
+        return (
+          <div key={idx} className="relative h-9 w-full rounded-md bg-black/5 dark:bg-white/5 overflow-hidden flex items-center">
+            <div
+              className={cn(
+                "absolute top-0 left-0 h-full transition-all opacity-20 dark:opacity-30",
+                isTailwindClass ? cat.color : fallbackColor
+              )}
+              style={{ width: `${percentage}%` }}
+            />
+            <div className="relative z-10 flex items-center justify-between px-3 w-full text-xs">
+              <div className="flex items-center gap-2 truncate max-w-[65%]">
+                <span className="text-base">{cat.icon || (type === "INCOME" ? "💰" : "🏷️")}</span>
+                <span className="font-medium truncate">{cat.name}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-semibold text-[11px]">
+                  {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(cat.value)}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-medium">{percentage.toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function MonthlySummary({ income, expense, net, periodLabel = "Selected Period", incomeCategories, expenseCategories }: MonthlySummaryProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -36,6 +91,18 @@ export function MonthlySummary({ income, expense, net, periodLabel = "Selected P
             <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
                 {periodLabel}
             </p>
+            {incomeCategories && (
+              <Accordion type="single" collapsible className="w-full border-t border-emerald-200/60 dark:border-emerald-900/50 mt-3 -mb-2">
+                <AccordionItem value="income-details" className="border-b-0">
+                  <AccordionTrigger className="text-xs py-2 text-emerald-700/70 dark:text-emerald-400/70 hover:text-emerald-800 hover:no-underline font-normal">
+                    View Breakdown
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CategoryBreakdownList categories={incomeCategories} total={income} type="INCOME" />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
         </div>
       </div>
 
@@ -55,6 +122,18 @@ export function MonthlySummary({ income, expense, net, periodLabel = "Selected P
             <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-1">
                 {periodLabel}
             </p>
+            {expenseCategories && (
+              <Accordion type="single" collapsible className="w-full border-t border-rose-200/60 dark:border-rose-900/50 mt-3 -mb-2">
+                <AccordionItem value="expense-details" className="border-b-0">
+                  <AccordionTrigger className="text-xs py-2 text-rose-700/70 dark:text-rose-400/70 hover:text-rose-800 hover:no-underline font-normal">
+                    View Breakdown
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CategoryBreakdownList categories={expenseCategories} total={expense} type="EXPENSE" />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
         </div>
       </div>
 

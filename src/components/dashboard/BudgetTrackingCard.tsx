@@ -101,8 +101,8 @@ function EnvelopeRow({ env, expanded, onToggle }: { env: EnvelopeOverview; expan
 }
 
 // Read-only budget tracking widget for the Dashboard -- shows total spend,
-// the envelopes closest to (or over) their limit, and (expandable) which
-// categories drove each envelope's spending. Full editing stays on /budget.
+// every envelope (most at-risk first), and (expandable) which categories
+// drove each envelope's spending. Full editing stays on /budget.
 export function BudgetTrackingCard() {
     const { data: overview, isLoading } = useBudgetOverview();
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -117,9 +117,8 @@ export function BudgetTrackingCard() {
         ? Math.min(100, (overview.totalSpent / overview.totalBudget) * 100)
         : 0;
 
-    const topEnvelopes = [...overview.envelopes]
-        .sort((a, b) => b.percent - a.percent)
-        .slice(0, 5);
+    // Show every envelope -- most at-risk (highest percent used) first.
+    const sortedEnvelopes = [...overview.envelopes].sort((a, b) => b.percent - a.percent);
 
     const toggleExpanded = (name: string) => {
         setExpanded((prev) => {
@@ -152,7 +151,7 @@ export function BudgetTrackingCard() {
                 </div>
 
                 <div className="space-y-1">
-                    {topEnvelopes.map((env) => (
+                    {sortedEnvelopes.map((env) => (
                         <EnvelopeRow
                             key={env.name}
                             env={env}
@@ -161,12 +160,6 @@ export function BudgetTrackingCard() {
                         />
                     ))}
                 </div>
-
-                {overview.envelopes.length > topEnvelopes.length && (
-                    <p className="text-xs text-muted-foreground text-center">
-                        +{overview.envelopes.length - topEnvelopes.length} kategori lainnya
-                    </p>
-                )}
             </CardContent>
         </Card>
     );
