@@ -9,9 +9,11 @@ export function useInsights(period?: string, owner?: string) {
     });
 }
 
-// Triggers the explicit "Analisis dengan AI" action. On success, writes the
-// result straight into the matching useInsights cache entry -- no extra
-// refetch needed since the mutation response already has the fresh data.
+// Triggers the explicit "Analisis dengan AI" action for whichever owner
+// filter is currently selected -- one owner at a time. On success, writes
+// the result straight into the matching useInsights cache entry -- no
+// extra refetch needed since the mutation response already has the fresh
+// data.
 export function useAnalyzeInsights(period?: string, owner?: string) {
     const queryClient = useQueryClient();
     return useMutation({

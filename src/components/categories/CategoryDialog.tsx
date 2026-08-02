@@ -265,39 +265,41 @@ export function CategoryDialog({ category, trigger, open, onOpenChange }: Catego
                              </div>
                          </div>
 
-                         {type === CategoryType.EXPENSE && (
+                         {(type === CategoryType.EXPENSE || type === CategoryType.INCOME) && (
                              <div className="space-y-4 border-t pt-4 border-dashed">
-                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <Label>Budgeting Bucket (50/30/20 Rule)</Label>
-                                    </div>
-                                    <Select value={bucket} onValueChange={(v) => setBucket(v as "NEEDS" | "WANTS" | "SAVINGS")}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select bucket..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="NEEDS">
-                                                <span className="font-medium">Needs (50%)</span>
-                                                <span className="text-muted-foreground ml-2 text-xs">- Essential survival costs</span>
-                                            </SelectItem>
-                                            <SelectItem value="WANTS">
-                                                <span className="font-medium">Wants (30%)</span>
-                                                <span className="text-muted-foreground ml-2 text-xs">- Lifestyle & Fun</span>
-                                            </SelectItem>
-                                            <SelectItem value="SAVINGS">
-                                                <span className="font-medium">Savings (20%)</span>
-                                                <span className="text-muted-foreground ml-2 text-xs">- Future & Debt Repayment</span>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                 </div>
+                                 {type === CategoryType.EXPENSE && (
+                                     <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Label>Budgeting Bucket (50/30/20 Rule)</Label>
+                                        </div>
+                                        <Select value={bucket} onValueChange={(v) => setBucket(v as "NEEDS" | "WANTS" | "SAVINGS")}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select bucket..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="NEEDS">
+                                                    <span className="font-medium">Needs (50%)</span>
+                                                    <span className="text-muted-foreground ml-2 text-xs">- Essential survival costs</span>
+                                                </SelectItem>
+                                                <SelectItem value="WANTS">
+                                                    <span className="font-medium">Wants (30%)</span>
+                                                    <span className="text-muted-foreground ml-2 text-xs">- Lifestyle & Fun</span>
+                                                </SelectItem>
+                                                <SelectItem value="SAVINGS">
+                                                    <span className="font-medium">Savings (20%)</span>
+                                                    <span className="text-muted-foreground ml-2 text-xs">- Future & Debt Repayment</span>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                     </div>
+                                 )}
 
                                  <div className="space-y-2">
                                     <Label>Group Name</Label>
-                                    <Input 
-                                        placeholder="e.g. Housing, Transport, Food" 
-                                        value={group} 
-                                        onChange={(e) => setGroup(e.target.value)} 
+                                    <Input
+                                        placeholder="e.g. Housing, Transport, Food"
+                                        value={group}
+                                        onChange={(e) => setGroup(e.target.value)}
                                         className="bg-background"
                                         list="group-suggestions"
                                     />
@@ -324,8 +326,17 @@ export function CategoryDialog({ category, trigger, open, onOpenChange }: Catego
                                                     <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                                                 </TooltipTrigger>
                                                 <TooltipContent className="max-w-xs">
-                                                    <p><strong>Fixed:</strong> Predictable costs like Rent, Internet, Insurance.</p>
-                                                    <p className="mt-1"><strong>Variable:</strong> Fluctuating costs like Groceries, Dining out, Entertainment.</p>
+                                                    {type === CategoryType.INCOME ? (
+                                                        <>
+                                                            <p><strong>Fixed:</strong> Reliable income like Salary, fixed allowance.</p>
+                                                            <p className="mt-1"><strong>Variable:</strong> Unpredictable income like Bonus, Freelance, Gifts.</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <p><strong>Fixed:</strong> Predictable costs like Rent, Internet, Insurance.</p>
+                                                            <p className="mt-1"><strong>Variable:</strong> Fluctuating costs like Groceries, Dining out, Entertainment.</p>
+                                                        </>
+                                                    )}
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>

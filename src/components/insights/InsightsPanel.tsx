@@ -38,6 +38,7 @@ interface InsightsPanelProps {
 }
 
 export function InsightsPanel({ data, isLoading, period, owner }: InsightsPanelProps) {
+    // Analyzes whichever owner filter is currently selected -- one at a time.
     const analyzeMutation = useAnalyzeInsights(period, owner);
 
     if (isLoading) {
