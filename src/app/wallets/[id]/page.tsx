@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFilters } from "@/components/TransactionFilters";
+import { TransactionSummaryStats } from "@/components/transactions/TransactionSummaryStats";
 import { History } from "lucide-react";
 import { WalletAnalytics } from "@/components/wallet/WalletAnalytics";
 import { WalletAnalyticsSkeleton, TransactionSkeleton } from "@/components/skeletons";
@@ -26,6 +27,9 @@ export default async function WalletPage({ params, searchParams }: { params: Pro
             
                 <TransactionFilters wallets={[]} showWalletFilter={false} />
             </div>
+
+            {/* Total Income / Expense for this wallet */}
+            <TransactionSummaryStats params={{ ...search, walletId: id }} />
 
             {/* Transaction List */}
             <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border p-1">
