@@ -168,6 +168,42 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
         return roots;
     }, [goal]);
 
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+        }).format(amount);
+    };
+
+    const handleCopyAllBudgetBreakdown = useCallback(() => {
+        const formatItem = (i: any, indent: string) => 
+            `${indent}- ${i.name} (Target: ${formatCurrency(i.estimatedAmount || 0)}, Aktual: ${formatCurrency(i.actualAmount || 0)})`;
+
+        const collectGroupText = (n: GroupNode, indent: string = ""): string => {
+            let res = `${indent}${n.name}:\n`;
+            if (n.items && n.items.length > 0) {
+                res += n.items.map((i: any) => formatItem(i, indent + "  ")).join('\n') + "\n";
+            }
+            n.children?.forEach(c => {
+                res += collectGroupText(c, indent + "  ");
+            });
+            return res;
+        };
+
+        let text = `Budget Breakdown: ${goal?.name || "Goal"}\n`;
+        text += `Total Target: ${formatCurrency(goal?.targetAmount || 0)}, Total Aktual: ${formatCurrency(goal?.currentAmount || 0)}\n\n`;
+        
+        rootNodes.forEach(root => {
+            text += collectGroupText(root, "");
+            text += "\n";
+        });
+
+        navigator.clipboard.writeText(text.trim());
+        toast.success("Seluruh budget breakdown dicopy ke clipboard");
+    }, [goal, rootNodes]);
+
     if (isGoalLoading) return <GoalDetailSkeleton />;
     if (error || !goal) return (
         <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center">
@@ -239,41 +275,6 @@ export function GoalDetailView({ goalId }: GoalDetailViewProps) {
     // If Remaining is 0, Progress is 100%. Correct.
     const overallProgress = totalEstimated > 0 ? ((totalEstimated - totalRemaining) / totalEstimated) * 100 : 0;
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
-    const handleCopyAllBudgetBreakdown = useCallback(() => {
-        const formatItem = (i: any, indent: string) => 
-            `${indent}- ${i.name} (Target: ${formatCurrency(i.estimatedAmount || 0)}, Aktual: ${formatCurrency(i.actualAmount || 0)})`;
-
-        const collectGroupText = (n: GroupNode, indent: string = ""): string => {
-            let res = `${indent}${n.name}:\n`;
-            if (n.items && n.items.length > 0) {
-                res += n.items.map((i: any) => formatItem(i, indent + "  ")).join('\n') + "\n";
-            }
-            n.children?.forEach(c => {
-                res += collectGroupText(c, indent + "  ");
-            });
-            return res;
-        };
-
-        let text = `Budget Breakdown: ${goal?.name || "Goal"}\n`;
-        text += `Total Target: ${formatCurrency(goal?.targetAmount || 0)}, Total Aktual: ${formatCurrency(goal?.currentAmount || 0)}\n\n`;
-        
-        rootNodes.forEach(root => {
-            text += collectGroupText(root, "");
-            text += "\n";
-        });
-
-        navigator.clipboard.writeText(text.trim());
-        toast.success("Seluruh budget breakdown dicopy ke clipboard");
-    }, [goal, rootNodes]);
 
     const goalColor = goal.color || '#6366f1';
 

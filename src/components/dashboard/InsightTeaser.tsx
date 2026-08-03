@@ -41,14 +41,16 @@ export function InsightTeaser({ data, isLoading }: { data?: InsightsData; isLoad
     return (
         <Link
             href="/analytics"
-            className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm hover:shadow-sm transition-shadow group"
+            className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm hover:shadow-sm transition-shadow group overflow-hidden"
         >
-            {severityIcon(headline.severity)}
-            <span className="flex-1 min-w-0 truncate text-muted-foreground">{headline.narrative}</span>
-            <span className="flex items-center gap-1 text-xs text-primary shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 flex-1 min-w-0 w-full sm:w-auto">
+                {severityIcon(headline.severity)}
+                <div className="truncate text-muted-foreground font-medium sm:font-normal flex-1 min-w-0 whitespace-normal">{headline.narrative}</div>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-primary shrink-0 whitespace-nowrap self-end sm:self-auto">
                 Lihat di Analytics
                 <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-            </span>
+            </div>
         </Link>
     );
 }

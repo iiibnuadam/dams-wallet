@@ -502,15 +502,15 @@ function EnvelopeCard({
                   href={catTxLink}
                   className="flex items-center justify-between text-xs group/cat hover:bg-muted/60 rounded px-1 -mx-1 py-0.5 transition-colors"
                 >
-                  <span className="flex items-center gap-1.5 text-muted-foreground truncate">
+                  <div className="flex items-center gap-1.5 text-muted-foreground min-w-0 flex-1">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || "#a1a1aa" }} />
-                    {cat.name}
+                    <span className="truncate">{cat.name}</span>
                     {ownerLabel(cat.owner) && (
-                      <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal">
+                      <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal shrink-0">
                         {ownerLabel(cat.owner)}
                       </Badge>
                     )}
-                  </span>
+                  </div>
                   <span className="shrink-0 ml-2 font-medium flex items-center gap-0.5">
                     {IDR(cat.spent, true)}
                     <ChevronRight className="w-3 h-3 opacity-0 group-hover/cat:opacity-100 transition-opacity" />
