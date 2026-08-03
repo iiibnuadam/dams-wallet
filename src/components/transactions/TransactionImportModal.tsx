@@ -164,20 +164,20 @@ export function TransactionImportModal({ open, onOpenChange }: { open: boolean, 
           const errors: string[] = [];
           
           // Match Wallet
-          const matchedWallet = wallets.find((w: any) => w.name.toLowerCase() === (row.Wallet || "").toLowerCase().trim());
+          const matchedWallet = wallets.find((w: any) => w.name.toLowerCase().trim() === (row.Wallet || "").toLowerCase().trim());
           if (!matchedWallet) errors.push(`Wallet "${row.Wallet}" not found`);
 
           // Match Category
           let matchedCategory = null;
           if (row.Category && row.Type !== "TRANSFER") {
-            matchedCategory = categories.find((c: any) => c.name.toLowerCase() === row.Category?.toLowerCase().trim() && c.type === row.Type);
+            matchedCategory = categories.find((c: any) => c.name.toLowerCase().trim() === row.Category?.toLowerCase().trim() && c.type === row.Type);
             if (!matchedCategory) errors.push(`Category "${row.Category}" (${row.Type}) not found`);
           }
 
           // Match Target Wallet
           let matchedTargetWallet = null;
           if (row.Type === "TRANSFER") {
-            matchedTargetWallet = wallets.find((w: any) => w.name.toLowerCase() === (row["Target Wallet"] || "").toLowerCase().trim());
+            matchedTargetWallet = wallets.find((w: any) => w.name.toLowerCase().trim() === (row["Target Wallet"] || "").toLowerCase().trim());
             if (!matchedTargetWallet) errors.push(`Target Wallet "${row["Target Wallet"]}" not found`);
           }
 
