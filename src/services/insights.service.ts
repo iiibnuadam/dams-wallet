@@ -24,6 +24,7 @@ export interface InsightsData {
     signals: Signal[];
     talkingPoints: TalkingPoint[];
     source: "llm" | "rules_only";
+    provider?: string | null;
     analyzedAt?: string | null;
 }
 

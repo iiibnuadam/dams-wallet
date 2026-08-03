@@ -30,6 +30,17 @@ function severityBorderClass(severity: Signal["severity"]) {
     }
 }
 
+function providerLabel(provider?: string | null): string {
+    switch (provider) {
+        case "deepseek":
+            return "DeepSeek";
+        case "huggingface":
+            return "HuggingFace";
+        default:
+            return "AI";
+    }
+}
+
 interface InsightsPanelProps {
     data?: InsightsData;
     isLoading?: boolean;
@@ -58,7 +69,10 @@ export function InsightsPanel({ data, isLoading, period, owner }: InsightsPanelP
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="text-xs text-muted-foreground">
                     {data.analyzedAt ? (
-                        <>Dianalisis AI {formatDistanceToNow(new Date(data.analyzedAt), { addSuffix: true, locale: idLocale })}</>
+                        <>
+                            Dianalisis {providerLabel(data.provider)}{" "}
+                            {formatDistanceToNow(new Date(data.analyzedAt), { addSuffix: true, locale: idLocale })}
+                        </>
                     ) : (
                         <>Belum pernah dianalisis dengan AI -- masih insight rule-based.</>
                     )}
