@@ -7,6 +7,7 @@ import { User, CreditCard } from "lucide-react";
 import { WalletViewToggle } from "@/components/WalletViewToggle";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { EditWalletDialog } from "@/components/EditWalletDialog";
+import { PayLiabilityBillDialog } from "@/components/wallet/PayLiabilityBillDialog";
 import { CopyButton } from "@/components/ui/copy-button";
 import { WalletType } from "@/types/wallet";
 
@@ -73,6 +74,11 @@ export async function WalletHeader({ id }: { id: string }) {
                         <div className="hidden md:block">
                             <AddTransactionDialog wallets={allWallets} defaultWalletId={id} successBehavior="refresh" />
                         </div>
+                        {wallet.type === WalletType.LIABILITY && (
+                            <div className="hidden md:block">
+                                <PayLiabilityBillDialog liabilityWallet={wallet} allWallets={allWallets} />
+                            </div>
+                        )}
                         <EditWalletDialog wallet={wallet} />
                     </div>
                 </div>

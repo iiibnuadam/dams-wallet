@@ -65,7 +65,10 @@ export function DashboardView({ initialView }: { initialView: string }) {
 function DashboardContent({ data, wallets, currentView, params }: { data: any, wallets: any[], currentView: string, params:any }) {
     const { summary, expenseByCategory, incomeByCategory, goals, debtStats } = data;
 
-    const netWorth = wallets.reduce((sum: number, w: any) => sum + (w.currentBalance || 0), 0);
+    const netWorth = wallets.reduce((sum: number, w: any) => {
+        if (w.type === "LIABILITY") return sum;
+        return sum + (w.currentBalance || 0);
+    }, 0);
 
     // Hidden by default, like a bank app -- click the eye to reveal.
     const [showNetWorth, setShowNetWorth] = useState(false);
