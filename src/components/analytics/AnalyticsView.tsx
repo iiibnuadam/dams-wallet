@@ -15,6 +15,7 @@ import { ContributionRadar } from "@/components/analytics/health/ContributionRad
 import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
 import { DailyTrend } from "@/components/dashboard/DailyTrend";
 import { AnalyticsExportListener } from "@/components/analytics/AnalyticsExportListener";
+import { DataComparisonView } from "@/components/data/DataComparisonView";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BarChart3, Clock } from "lucide-react";
@@ -147,6 +148,12 @@ export function AnalyticsView({ initialView }: AnalyticsViewProps) {
         <section className="space-y-4">
              <h2 className="text-xl font-semibold">4. Daily Activity</h2>
              <DailyTrend data={dailyTrend} average={summary.avgDailyExpense} />
+        </section>
+
+        {/* 6. Historical Data Comparison */}
+        <section className="space-y-4">
+             <h2 className="text-xl font-semibold">5. Historical Data Comparison</h2>
+             <DataComparisonView />
         </section>
 
         <AnalyticsExportListener data={{

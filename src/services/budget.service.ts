@@ -81,4 +81,10 @@ export const BudgetService = {
       params: { period },
     });
   },
+
+  async getBudgetHistorical(months: number = 6): Promise<BudgetOverview[]> {
+    return apiFetch<BudgetOverview[]>("/budget/historical", {
+      params: { months },
+    });
+  },
 };
