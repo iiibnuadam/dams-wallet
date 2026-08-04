@@ -32,7 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   sourceWallet: z.string().min(1, "Source wallet is required"),
-  date: z.string().default(""),
+  date: z.string(),
   description: z.string().optional(),
 });
 

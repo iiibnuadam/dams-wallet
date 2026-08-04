@@ -51,6 +51,7 @@ export function DataComparisonView() {
                 income: cf.income,
                 expense: cf.expense,
                 net: cf.income - cf.expense,
+                netGrowth: 0,
                 totalBudget: b.budget,
                 totalSpent: b.spent,
                 envelopes: b.envelopes || [],
