@@ -72,3 +72,19 @@ export async function confirmTransaction(id: string) {
     method: "PATCH",
   });
 }
+
+export interface ParsedTransactionResult {
+  amount: number;
+  date: string;
+  description: string;
+  type: "INCOME" | "EXPENSE" | "TRANSFER";
+  categoryName: string;
+  walletName: string;
+}
+
+export async function parseText(text: string) {
+  return apiFetch<ParsedTransactionResult[]>("/transactions/parse-text", {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}

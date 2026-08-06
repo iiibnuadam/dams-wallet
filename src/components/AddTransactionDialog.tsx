@@ -35,13 +35,15 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { TransactionType } from "@/types/transaction"; 
 
-import { createTransaction } from "@/services/transaction.service";
+import { parseText, createTransaction } from "@/services/transaction.service";
+import Tesseract from "tesseract.js";
 import { useUpdateTransaction } from "@/hooks/useTransactions";
 import { CategoryService } from "@/services/category.service";
-import { Plus, Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { Plus, Loader2, Camera } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
+import { BulkTransactionReview } from "./BulkTransactionReview";
 
 // Need to match the enum from models or define a local one if type import fails, but best to have shared types.
 // I'll assume TransactionType is available in types/transaction or models/Transaction
@@ -110,6 +112,8 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
     }
   };
   const [activeTab, setActiveTab] = useState<string>(ClientTransactionType.EXPENSE);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const params = useParams();
   const router = useRouter();
   const updateMutation = useUpdateTransaction();
@@ -225,6 +229,154 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
       form.clearErrors(); 
   };
 
+  const normalizeImage = (file: File): Promise<File> => {
+      return new Promise((resolve, reject) => {
+          // If it's already a standard web format and small enough, we could skip, 
+          // but converting guarantees a clean JPEG signature for OCR.space.
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(file);
+          img.onload = () => {
+              URL.revokeObjectURL(objectUrl);
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                  return resolve(file); // fallback to original
+              }
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob(
+                  (blob) => {
+                      if (blob) {
+                          const newFile = new File([blob], "image.jpg", {
+                              type: "image/jpeg",
+                              lastModified: Date.now(),
+                          });
+                          resolve(newFile);
+                      } else {
+                          resolve(file); // fallback
+                      }
+                  },
+                  "image/jpeg",
+                  0.8 // 80% quality to reduce size
+              );
+          };
+          img.onerror = () => {
+              URL.revokeObjectURL(objectUrl);
+              resolve(file); // fallback
+          };
+          img.src = objectUrl;
+      });
+  };
+
+  const [bulkItems, setBulkItems] = useState<any[] | null>(null);
+
+  const handleFile = async (rawFile: File) => {
+      setIsUploading(true);
+      const toastId = toast.loading("Loading OCR Engine... (might take a few seconds on first run)");
+      
+      try {
+          const file = await normalizeImage(rawFile);
+          
+          toast.loading("Scanning text from image...", { id: toastId });
+          const { data: { text } } = await Tesseract.recognize(
+              file,
+              'eng',
+              { logger: m => console.log(m) }
+          );
+
+          if (!text || text.trim() === "") {
+              throw new Error("No text found in the image. Please try a clearer picture.");
+          }
+
+          toast.loading("AI is analyzing the text...", { id: toastId });
+          const results = await parseText(text);
+          
+          if (!Array.isArray(results) || results.length === 0) {
+              throw new Error("AI could not extract any transactions.");
+          }
+
+          if (results.length > 1) {
+              setBulkItems(results);
+              toast.success(`Found ${results.length} transactions!`, { id: toastId });
+          } else {
+              const result = results[0];
+              if (result.type) {
+                  const upperType = result.type.toUpperCase();
+                  if (Object.values(ClientTransactionType).includes(upperType as any)) {
+                      onTabChange(upperType);
+                  }
+              }
+              
+              if (result.amount) {
+                  form.setValue("amount", result.amount.toString());
+              }
+              if (result.description) {
+                  form.setValue("description", result.description);
+              }
+              if (result.date) {
+                  form.setValue("date", result.date);
+              }
+              
+              if (result.categoryName) {
+                  const matchedCat = categories.find(c => 
+                      c.name.toLowerCase() === result.categoryName.toLowerCase() && 
+                      c.type.toUpperCase() === (result.type || activeTab).toUpperCase()
+                  );
+                  if (matchedCat) {
+                      form.setValue("category", matchedCat.id);
+                  }
+              }
+              
+              if (result.walletName && !isLocked) {
+                  const matchedWallet = wallets.find(w => w.name.toLowerCase() === result.walletName.toLowerCase());
+                  if (matchedWallet) {
+                      form.setValue("wallet", matchedWallet._id);
+                  }
+              }
+
+              toast.success("Details extracted successfully", { id: toastId });
+          }
+      } catch (error: any) {
+          console.error("Failed to parse image", error);
+          toast.error("Failed to extract details from image", { id: toastId });
+      } finally {
+          setIsUploading(false);
+          // reset input so same file can be selected again
+          if (fileInputRef.current) {
+              fileInputRef.current.value = "";
+          }
+      }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await handleFile(file);
+  };
+
+  useEffect(() => {
+      const handlePaste = (e: ClipboardEvent) => {
+          if (!open) return; // only listen if dialog is open
+          const items = e.clipboardData?.items;
+          if (!items) return;
+          for (let i = 0; i < items.length; i++) {
+              if (items[i].type.indexOf("image") !== -1) {
+                  const file = items[i].getAsFile();
+                  if (file) {
+                      handleFile(file);
+                      break;
+                  }
+              }
+          }
+      };
+      
+      window.addEventListener("paste", handlePaste as any);
+      return () => {
+          window.removeEventListener("paste", handlePaste as any);
+      };
+  }, [open, activeTab, categories, wallets, isLocked]); // Add dependencies since handleFile uses them
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const payload: any = {
         amount: Number(values.amount),
@@ -288,22 +440,70 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
   return (
     <ResponsiveDialog
         open={open}
-        onOpenChange={setOpen}
-        title={transaction ? "Edit Transaction" : "Add Transaction"}
-        description={transaction ? "Update the details of this transaction." : "Record your income, expense, or transfer."}
+        onOpenChange={(val) => {
+            if (!val) setBulkItems(null);
+            setOpen(val);
+        }}
+        title={transaction ? "Edit Transaction" : (bulkItems ? "Bulk Review" : "Add Transaction")}
+        description={transaction ? "Update the details of this transaction." : (bulkItems ? "Review the scanned transactions." : "Record your income, expense, or transfer.")}
         trigger={transaction ? null : (trigger ? trigger : (
             <Button size="sm" className="gap-2">
                 <Plus className="w-4 h-4" /> Add Transaction
             </Button>
         ))}
     >
-        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+        {bulkItems ? (
+            <BulkTransactionReview 
+                items={bulkItems} 
+                categories={categories} 
+                wallets={wallets} 
+                defaultWalletId={effectiveDefaultWalletId || (wallets.length > 0 ? wallets[0]._id : "")}
+                onSuccess={() => {
+                    setBulkItems(null);
+                    setOpen(false);
+                    if (onSuccess) {
+                        onSuccess();
+                    } else if (successBehavior === 'refresh') {
+                        window.dispatchEvent(new CustomEvent('transaction-added'));
+                        router.refresh();
+                    } else {
+                        window.location.reload();
+                    }
+                }}
+                onCancel={() => setBulkItems(null)}
+            />
+        ) : (
+            <>
+                <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value={ClientTransactionType.EXPENSE}>Expense</TabsTrigger>
                 <TabsTrigger value={ClientTransactionType.INCOME}>Income</TabsTrigger>
                 <TabsTrigger value={ClientTransactionType.TRANSFER}>Transfer</TabsTrigger>
             </TabsList>
         </Tabs>
+
+        {!transaction && (
+            <div className="flex flex-col mt-4">
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleImageUpload} 
+                />
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full border-dashed" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                >
+                    {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />}
+                    Scan Receipt (or Paste Image)
+                </Button>
+            </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -478,6 +678,8 @@ export function AddTransactionDialog({ wallets, defaultWalletId, trigger, defaul
             </DialogFooter>
           </form>
         </Form>
+      </>
+    )}
     </ResponsiveDialog>
   );
 }
